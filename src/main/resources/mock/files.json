@@ -1,0 +1,140 @@
+[
+  {
+    "id": 1,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 1
+  },
+  {
+    "id": 2,
+    "path": "/public/images/sample_images_00.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 2
+  },
+  {
+    "id": 3,
+    "path": "/public/images/sample_images_01.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 3
+  },
+  {
+    "id": 4,
+    "path": "/public/images/sample_images_02.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 2
+  },
+  {
+    "id": 5,
+    "path": "/public/images/sample_images_03.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 6,
+    "path": "/public/images/sample_images_04.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 2
+  },
+  {
+    "id": 7,
+    "path": "/public/images/sample_images_05.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 8,
+    "path": "/public/images/sample_images_06.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 2
+  },
+  {
+    "id": 9,
+    "path": "/public/images/sample_images_07.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 10,
+    "path": "/public/images/sample_images_08.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 11,
+    "path": "/public/images/sample_images_09.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 2
+  },
+  {
+    "id": 12,
+    "path": "/public/images/sample_images_10.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 13,
+    "path": "/public/images/sample_images_11.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 2
+  },
+  {
+    "id": 14,
+    "path": "/public/images/sample_images_12.png",
+    "category": "POST_ATTACHMENT",
+    "uploaderId": 3
+  },
+  {
+    "id": 15,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 4
+  },
+  {
+    "id": 16,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 5
+  },
+  {
+    "id": 17,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 6
+  },
+  {
+    "id": 18,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 7
+  },
+  {
+    "id": 19,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 8
+  },
+  {
+    "id": 20,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 9
+  },
+  {
+    "id": 21,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 10
+  },
+  {
+    "id": 22,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 11
+  },
+  {
+    "id": 23,
+    "path": "/public/images/defaultProfileImage.png",
+    "category": "PROFILE_IMAGE",
+    "uploaderId": 12
+  }
+]

@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: week4
+  profiles:
+    active: development
+
+file:
+  upload-dir: uploads/images
+
+jwt:
+  secret: your-secret
+  access-token-exp-seconds: 300
+  refresh-token-exp-seconds: 12096000
