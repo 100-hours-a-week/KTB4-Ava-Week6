@@ -27,6 +27,7 @@ out/
 !**/src/test/**/out/
 
 ### NetBeans ###
+### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -35,3 +36,5 @@ out/
 
 ### VS Code ###
 .vscode/
+
+.env

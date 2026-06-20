@@ -1,1 +1,6 @@
-rootProject.name = 'week4'
+pluginManagement {
+    plugins {
+        id 'org.jetbrains.kotlin.jvm' version '2.3.21'
+    }
+}
+rootProject.name = 'week6'
