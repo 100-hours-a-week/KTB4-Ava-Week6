@@ -32,6 +32,7 @@ public class UserService {
     private final FileRepository fileRepository;
 
     // 회원가입
+    @Transactional
     public UserResponseDto createUser(UserRegisterRequestDto request, MultipartFile file) {
         validateUniqueEmail(request.getEmail());
         validateUniqueNickname(request.getNickname());
@@ -52,6 +53,7 @@ public class UserService {
     }
 
     // 회원 정보 조회
+    @Transactional(readOnly = true)
     public UserResponseDto getUser(Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
         return new UserResponseDto(user);

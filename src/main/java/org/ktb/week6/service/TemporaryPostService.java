@@ -29,6 +29,7 @@ public class TemporaryPostService {
     private final FileService fileService;
 
     // 임시저장 조회
+    @Transactional(readOnly = true)
     public TemporaryPostResponseDto getTemporaryPost(Long userId) {
         TemporaryPost post = temporaryPostRepository.findByUserId(userId).orElse(null);
         return new TemporaryPostResponseDto(post);
