@@ -8,17 +8,21 @@ import org.ktb.week6.dto.PostRequestDto;
 import org.ktb.week6.dto.PostResponseDto;
 import org.ktb.week6.dto.PostUpdateRequestDto;
 import org.ktb.week6.entity.*;
+import org.ktb.week6.enums.ActionType;
 import org.ktb.week6.enums.FileCategory;
+import org.ktb.week6.enums.ReportReason;
 import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,15 +31,19 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-
-    private final FileService fileService;
     private final LikeRepository likeRepository;
     private final ReportRepository reportRepository;
+    private final TemporaryPostService temporaryPostService;
+    private final PostHistoryRepository postHistoryRepository;
+    private final PostViewLogsRepository postViewLogsRepository;
 
-    // 게시글 목록 조회 TODO: 숨겨진 게시글 처리
+    private final FileService fileService;
+
+    // 게시글 목록 조회
+    @Transactional(readOnly = true)
     public PostListResponseDto getPosts(Long cursorId) {
         Long currentCursorId = cursorId == null ? Long.MAX_VALUE : cursorId;
-        List<Post> activePosts = postRepository.findAll().stream()
+        List<Post> activePosts = postRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(post -> !post.getStatus().equals(StatusType.DELETED))
                 .toList();
 
@@ -48,7 +56,7 @@ public class PostService {
 
         boolean hasNext = cursorPosts.size() > POST_PAGE_SIZE;
         List<Post> pagePosts = hasNext ? cursorPosts.subList(0, POST_PAGE_SIZE) : cursorPosts;
-        Long responseNextCursorId = hasNext ? pagePosts.get(pagePosts.size() - 1).getId() : null;
+        Long responseNextCursorId = hasNext ? pagePosts.getLast().getId() : null;
         List<PostResponseDto> posts = pagePosts.stream()
                 .map(this::toPostResponseDto)
                 .toList();
@@ -60,37 +68,65 @@ public class PostService {
     }
 
     // 게시글 작성
+    @Transactional
     public PostResponseDto createPost(@Positive Long userId, PostRequestDto request, MultipartFile image) {
         User user = userRepository.findById(userId).orElseThrow(() ->
                 new NotFoundException("user_not_found"));
 
-        File file = fileService.storeFile(image, userId, FileCategory.POST_ATTACHMENT);
+        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
 
-        Post post = new Post(request.getTitle(), request.getContent(), user, file);
+        Post post = new Post(request.getTitle(), request.getContent(), user, file.orElse(null));
 
         Post savedPost = postRepository.save(post);
+
+        // 임시저장 이력도 함께 삭제
+        if (request.getTemporaryPostId() != null) {
+            temporaryPostService.deleteTemporaryPost(request.getTemporaryPostId(), userId);
+        }
+
+        Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
+
+        // 이력 저장
+        PostHistory postHistory = new PostHistory(ActionType.INSERT, post.getTitle(), post.getContent(), nextVersion, post, user, file.orElse(null));
+
+        postHistoryRepository.save(postHistory);
 
         return new PostResponseDto(savedPost);
     }
 
     // 게시글 상세 조회
-    public PostResponseDto getPost(Long postId) {
+    @Transactional
+    public PostResponseDto getPost(Long postId, Long userId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+
         if (post.getStatus().equals(StatusType.DELETED)) {
             throw new NotFoundException("post_not_found");
         }
 
-        post.increaseViewCount();
-        postRepository.save(post);
+        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+
+        PostViewLogs viewLogs = postViewLogsRepository.findByPostIdAndUserId(postId, userId).orElse(null);
+        // 24시간 내 중복 조회수 제한 - 아직 본 적 없을 때
+        if(viewLogs == null) {
+            PostViewLogs newViewLogs = new PostViewLogs(post, user);
+            postViewLogsRepository.save(newViewLogs);
+
+            post.increaseViewCount();
+        } else if (viewLogs.isExpired()) {
+            post.increaseViewCount();
+
+            // 24시간 지나면 기존 조회 이력 삭제
+            postViewLogsRepository.delete(viewLogs);
+        }
 
         return new PostResponseDto(post);
     }
 
     // 게시글 수정
+    @Transactional
     public PostResponseDto updatePost(@Positive Long userId, @Positive Long postId, @Valid PostUpdateRequestDto request, MultipartFile image) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         validatePostIsNotDeleted(post);
-        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
         // 수정자 권한 체크
         if (!post.getUser().getId().equals(userId)) {
@@ -114,16 +150,22 @@ public class PostService {
         }
 
         if (hasImage) {
-            File file = fileService.storeFile(image, userId, FileCategory.POST_ATTACHMENT);
-            post.updateFile(file);
+            Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
+            post.updateFile(file.orElse(null));
         }
 
-        postRepository.save(post);
+        Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
+
+        // 이력 저장
+        PostHistory postHistory = new PostHistory(ActionType.UPDATE, post.getTitle(), post.getContent(), nextVersion, post, post.getUser(), post.getFile());
+
+        postHistoryRepository.save(postHistory);
 
         return new PostResponseDto(post);
     }
 
     // 게시글 삭제
+    @Transactional
     public void deletePost(@Positive Long userId, @Positive Long postId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         validatePostIsNotDeleted(post);
@@ -134,20 +176,29 @@ public class PostService {
         }
 
         post.updateStatus(StatusType.DELETED);
-        postRepository.save(post);
+
+        Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
+
+        // 이력 저장
+        PostHistory postHistory = new PostHistory(ActionType.DELETE, post.getTitle(), post.getContent(), nextVersion, post, post.getUser(), post.getFile());
+
+        postHistoryRepository.save(postHistory);
     }
 
     // 게시글 좋아요
+    @Transactional
     public PostResponseDto likePost(@Positive Long userId, @Positive Long postId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+
         validatePostIsNotDeleted(post);
+
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
         // 이미 좋아요 눌렀으면 제거
-        likeRepository.findByPostIdAndUserId(postId, userId)
+        likeRepository.findByPostAndUser(post, user)
                 .ifPresentOrElse(
                         like -> {
-                            likeRepository.deleteById(like);
+                            likeRepository.delete(like);
                             post.decreaseLikeCount();
                         },
                         () -> {
@@ -156,12 +207,12 @@ public class PostService {
                         }
                 );
 
-        postRepository.save(post);
         return new PostResponseDto(post);
     }
 
     // 게시글 신고
-    public PostResponseDto reportPost(@Positive Long userId, @Positive Long postId) {
+    @Transactional
+    public PostResponseDto reportPost(@Positive Long userId, @Positive Long postId, ReportReason reason) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         validatePostIsNotDeleted(post);
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
@@ -171,15 +222,13 @@ public class PostService {
             throw new BusinessException(HttpStatus.CONFLICT, "post_already_reported");
         }
 
-        reportRepository.save(new Report(null, postId, userId));
+        reportRepository.save(new Report(null, post, user, reason));
         post.increaseReportCount();
 
         // 신고 수 누적 체크
         if (post.getReportCount() >= 5) {
             post.updateStatus(StatusType.BLIND);
         }
-
-        postRepository.save(post);
 
         return new PostResponseDto(post);
     }
@@ -191,9 +240,6 @@ public class PostService {
     }
 
     private PostResponseDto toPostResponseDto(Post post) {
-        User user = userRepository.findById(post.getUser().getId())
-                .orElseThrow(() -> new NotFoundException("user_not_found"));
-
         return new PostResponseDto(post);
     }
 }

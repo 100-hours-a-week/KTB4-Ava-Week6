@@ -10,18 +10,29 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(uniqueConstraints = {
+        @UniqueConstraint(
+                name = "POST_VIEW_LOGS_POST_USER_UNIQUE",
+                columnNames = {"post_id", "user_id"}
+        )
+})
 @Getter @Setter
 @EntityListeners(AuditingEntityListener.class)
-public class RefreshToken {
+public class PostViewLogs {
+
+    private static final long EXPIRATION_HOURS = 24;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne()
+    @JoinColumn(name = "post_id")
     @NotNull
-    private String refreshToken;
+    private Post post;
 
     @ManyToOne()
-    @JoinColumn(name = "user_id") // FK(refresh_token.user_id) -> user.user_id
+    @JoinColumn(name = "user_id")
     @NotNull
     private User user;
 
@@ -29,19 +40,14 @@ public class RefreshToken {
     @NotNull
     private LocalDateTime createdAt;
 
-    @NotNull
-    private LocalDateTime expiresAt;
+    protected PostViewLogs() {}
 
-    protected RefreshToken() {}
-
-    public RefreshToken(String refreshToken, User user, LocalDateTime expiresAt) {
-        this.refreshToken = refreshToken;
+    public PostViewLogs(Post post, User user) {
+        this.post = post;
         this.user = user;
-        this.expiresAt = expiresAt;
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now().isAfter(createdAt.plusHours(EXPIRATION_HOURS));
     }
-
 }

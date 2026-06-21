@@ -2,16 +2,17 @@ package org.ktb.week6.service;
 
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.auth.JwtProvider;
+import org.ktb.week6.dto.*;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.entity.RefreshToken;
 import org.ktb.week6.entity.User;
-import org.ktb.week6.dto.*;
 import org.ktb.week6.exception.AuthorizedException;
 import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.repository.RefreshTokenRepository;
 import org.ktb.week6.repository.UserRepository;
 import org.ktb.week6.utils.FileUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
 
     // 로그인
+    @Transactional
     public AuthResultDto login(AuthRequestDto request) {
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new AuthorizedException("invalid_credentials"));
 
@@ -62,8 +64,9 @@ public class AuthService {
     }
 
     // 액세스 토큰 재발급
+    @Transactional
     public TokenResultDto refreshAccessToken(String refreshToken) {
-        RefreshToken saved = refreshTokenRepository.findByToken(refreshToken)
+        RefreshToken saved = refreshTokenRepository.findByRefreshToken(refreshToken)
                 .orElseThrow(() -> new AuthorizedException("unauthorized"));
 
         if (saved.isExpired()) {
@@ -84,16 +87,14 @@ public class AuthService {
                         user,
                         LocalDateTime.now().plusDays(14)
                 ));
+
         return new TokenResultDto(
                 new TokenInfoDto(newAccessToken, jwtProvider.getAccessTokenValidityInMilliseconds()), newRefreshToken
         );
     }
 
-    public void logout(RefreshToken refreshToken) {
-        refreshTokenRepository.delete(refreshToken);
-    }
-
+    @Transactional
     public void logout(String refreshToken) {
-        refreshTokenRepository.delete(refreshToken);
+        refreshTokenRepository.deleteByRefreshToken(refreshToken);
     }
 }

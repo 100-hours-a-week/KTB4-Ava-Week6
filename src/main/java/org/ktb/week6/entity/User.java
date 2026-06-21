@@ -1,39 +1,65 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(
+                name = "EMAIL_UNIQUE",
+                columnNames = {"email"}
+        ),
+        @UniqueConstraint(
+                name = "NICKNAME_UNIQUE",
+                columnNames = {"nickname"}
+        )
+})
 @Getter @Setter
+@EntityListeners(AuditingEntityListener.class)
+@SQLRestriction("deleted_at IS NULL")
 public class User {
 
     @Id
-    @GeneratedValue
-    @Column(name = "user_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull
     private String email;
+
+    @NotNull
     private String password;
+
+    @NotNull
     private String nickname;
+
+    @Enumerated(EnumType.STRING)
+    @NotNull
     private StatusType status;
 
     @OneToOne()
-    @JoinColumn(name = "file_id")
+    @JoinColumn(name = "file_id") // FK (user.file_id) -> file.id
     private File file;
 
     @CreatedDate
+    @NotNull
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @NotNull
     private LocalDateTime updatedAt;
 
     private LocalDateTime deletedAt;
+
+    protected User() {}
 
     public User(String email, String password, String nickname) {
         this.email = email;
@@ -56,10 +82,6 @@ public class User {
 
     public void updatePassword(String password) {
         this.password = password;
-    }
-
-    public void updateStatus(StatusType status) {
-        this.status = status;
     }
 
     public void deleteUser() {

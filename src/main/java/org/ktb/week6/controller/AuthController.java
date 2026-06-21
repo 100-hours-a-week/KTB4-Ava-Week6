@@ -3,6 +3,7 @@ package org.ktb.week6.controller;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.ktb.week6.Auth;
 import org.ktb.week6.dto.*;
 import org.ktb.week6.enums.ApiResultStatus;
 import org.ktb.week6.response.ApiResponse;
@@ -63,9 +64,9 @@ public class AuthController {
 
     // 액세스 토큰 재발급
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<TokenInfoDto>> refreshAccessToken(
-            @CookieValue(name = "refreshToken") String refreshToken,
-            HttpServletResponse httpResponse
+    public ResponseEntity<ApiResponse<TokenInfoDto>> refreshAccessToken(@Auth Long userId,
+                                                                        @CookieValue(name = "refreshToken") String refreshToken,
+                                                                        HttpServletResponse httpResponse
     ) {
         TokenResultDto result = authService.refreshAccessToken(refreshToken);
 

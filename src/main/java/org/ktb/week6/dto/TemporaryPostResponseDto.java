@@ -1,0 +1,27 @@
+package org.ktb.week6.dto;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.ktb.week6.entity.TemporaryPost;
+
+import java.time.LocalDateTime;
+
+@Getter
+@NoArgsConstructor
+public class TemporaryPostResponseDto {
+    private Long id;
+    private String title;
+    private String content;
+    private String imageUrl;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public TemporaryPostResponseDto(TemporaryPost post) {
+        this.id = post.getId();
+        this.title = post.getTitle();
+        this.content = post.getContent();
+        this.imageUrl = post.getFile() == null ? null : post.getFile().getUrl();
+        this.createdAt = post.getCreatedAt();
+        this.updatedAt = post.getUpdatedAt();
+    }
+}

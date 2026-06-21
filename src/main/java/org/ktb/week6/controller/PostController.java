@@ -4,10 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.Auth;
 import org.ktb.week6.auth.JwtProvider;
-import org.ktb.week6.dto.PostListResponseDto;
-import org.ktb.week6.dto.PostRequestDto;
-import org.ktb.week6.dto.PostResponseDto;
-import org.ktb.week6.dto.PostUpdateRequestDto;
+import org.ktb.week6.dto.*;
 import org.ktb.week6.enums.ApiResultStatus;
 import org.ktb.week6.response.ApiResponse;
 import org.ktb.week6.service.PostService;
@@ -39,8 +36,8 @@ public class PostController {
 
     // 게시글 상세 조회
     @GetMapping("/{postId}")
-    public ResponseEntity<ApiResponse<PostResponseDto>> getPost(@PathVariable Long postId) {
-        PostResponseDto result = postService.getPost(postId);
+    public ResponseEntity<ApiResponse<PostResponseDto>> getPost(@Auth Long userId, @PathVariable Long postId) {
+        PostResponseDto result = postService.getPost(postId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.of(ApiResultStatus.SUCCESS, "post_retrieved_success", result));
     }
 
@@ -67,8 +64,9 @@ public class PostController {
 
     // 게시글 신고
     @PostMapping("/{postId}/report")
-    public ResponseEntity<ApiResponse<PostResponseDto>> reportPost(@Auth Long userId, @PathVariable Long postId) {
-        PostResponseDto result = postService.reportPost(userId, postId);
+    public ResponseEntity<ApiResponse<PostResponseDto>> reportPost(@Auth Long userId, @PathVariable Long postId, @Valid @RequestBody ReportRequestDto request) {
+        System.out.println(request.getReason());
+        PostResponseDto result = postService.reportPost(userId, postId, request.getReason());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(ApiResultStatus.SUCCESS, "post_report_success", result));
     }
 

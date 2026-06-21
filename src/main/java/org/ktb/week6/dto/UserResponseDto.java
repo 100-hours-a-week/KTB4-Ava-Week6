@@ -16,6 +16,6 @@ public class UserResponseDto {
         this.id = user.getId();
         this.email = user.getEmail();
         this.nickname = user.getNickname();
-        this.profileImageUrl = user.getFile().getUrl();
+        this.profileImageUrl = user.getFile() == null ? null : user.getFile().getUrl();
     }
 }

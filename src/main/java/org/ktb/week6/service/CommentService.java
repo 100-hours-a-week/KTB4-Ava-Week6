@@ -14,6 +14,7 @@ import org.ktb.week6.repository.PostRepository;
 import org.ktb.week6.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,35 +30,35 @@ public class CommentService {
     private final PostRepository postRepository;
 
     // 댓글 작성
+    @Transactional
     public CommentResponseDto createComment(CommentRequestDto request, Long postId, Long userId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         if (post.getStatus().equals(StatusType.DELETED)) {
             throw new NotFoundException("post_not_found");
         }
 
-        validateParentComment(request.getParentId(), postId);
+        Optional<Comment> parent = validateAndGetParentComment(request.getParentId(), postId);
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
-
-
-        Optional<Comment> parent = commentRepository.findByCommentId(request.getParentId());
 
         Comment comment = new Comment(
                 request.getContent(),
                 post,
                 user,
-                parent.get()
+                parent.orElse(null)
         );
 
         Comment savedComment = commentRepository.save(comment);
-        postRepository.save(post);
+
+        post.increaseCommentCount();
 
         return new CommentResponseDto(savedComment);
     }
 
     // 댓글 조회
+    @Transactional(readOnly = true)
     public List<CommentResponseDto> getComments(Long postId) {
         postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
-        List<Comment> comments = commentRepository.findByPostId(postId);
+        List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtDesc(postId);
 
         Map<Long, List<Comment>> childrenMap = comments.stream()
                 .filter(comment -> comment.getParent() != null)
@@ -74,61 +75,55 @@ public class CommentService {
     }
 
     // 댓글 수정
+    @Transactional
     public CommentResponseDto updateComment(Long postId, Long commentId, Long userId, CommentRequestDto request) {
         postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
-        Comment comment = commentRepository.findByCommentId(commentId).orElseThrow(() -> new NotFoundException("comment_not_found"));
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new NotFoundException("comment_not_found"));
 
         validateCommentBelongsToPost(comment, postId);
         validateCommentIsNotDeleted(comment);
 
         // 본인이 작성한 댓글이 아닐 때
-        if (!comment.getAuth().getId().equals(userId)) {
+        if (!comment.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "comment_update_forbidden");
         }
 
         comment.updateContent(request.getContent());
-        comment.updateIsEdited();
-
-        commentRepository.save(comment);
 
         return new CommentResponseDto(comment);
 
     }
 
     // 댓글 삭제
+    @Transactional
     public void deleteComment(Long postId, Long commentId, Long userId) {
-        postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
-        Comment comment = commentRepository.findByCommentId(commentId).orElseThrow(() -> new NotFoundException("comment_not_found"));
+        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new NotFoundException("comment_not_found"));
 
         validateCommentBelongsToPost(comment, postId);
 
         // 본인이 작성한 댓글이 아닐 때
-        if (!comment.getAuth().getId().equals(userId)) {
+        if (!comment.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "comment_delete_forbidden");
-        }
-
-        // 삭제 상태가 아닌 경우에 삭제 처리
-        if (comment.getStatus() != StatusType.DELETED) {
-            comment.updateStatus(StatusType.DELETED);
-            commentRepository.save(comment);
-
-            Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
-            postRepository.save(post);
         }
 
         // 이미 삭제된 댓글일 때
         if (comment.getStatus() == StatusType.DELETED) {
             throw new BusinessException(HttpStatus.CONFLICT, "comment_alreay_deleted");
         }
+
+        // 삭제 상태가 아닌 경우에 삭제 처리
+        comment.updateStatus(StatusType.DELETED);
+        post.decreaseCommentCount();
     }
 
-    // 부모 댓글 ID 검증
-    private void validateParentComment(Long parentId, Long postId) {
+    // 부모 댓글 검증 후 반환
+    private Optional<Comment> validateAndGetParentComment(Long parentId, Long postId) {
         if (parentId == null) {
-            return;
+            return Optional.empty();
         }
 
-        Comment parent = commentRepository.findByCommentId(parentId)
+        Comment parent = commentRepository.findById(parentId)
                 .orElseThrow(() -> new NotFoundException("parent_comment_not_found"));
 
         validateCommentBelongsToPost(parent, postId);
@@ -136,6 +131,8 @@ public class CommentService {
         if (parent.getStatus() == StatusType.DELETED) {
             throw new NotFoundException("parent_comment_not_found");
         }
+
+        return Optional.of(parent);
     }
 
     // 게시글 ID 검증
@@ -159,7 +156,7 @@ public class CommentService {
             Map<Long, User> userCache
     ) {
         User user = userCache.computeIfAbsent(
-                comment.getAuth().getId(),
+                comment.getUser().getId(),
                 userId -> userRepository.findById(userId)
                         .orElseThrow(() -> new NotFoundException("user_not_found"))
         );

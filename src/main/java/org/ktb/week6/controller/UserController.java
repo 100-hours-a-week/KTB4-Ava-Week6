@@ -39,7 +39,7 @@ public class UserController {
 
     // 회원 정보 수정
     @PatchMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(@Auth Long userId, @RequestPart(value = "file", required = false) MultipartFile file, @Valid @ModelAttribute UserUpdateInfoRequestDto request) {
+    public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(@Auth Long userId, @RequestPart(value = "image", required = false) MultipartFile file, @Valid @ModelAttribute UserUpdateInfoRequestDto request) {
         UserResponseDto result = userService.updateUserInfo(userId, request, file);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.of(ApiResultStatus.SUCCESS, "user_update_success", result));
     }

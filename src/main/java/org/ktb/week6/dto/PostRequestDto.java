@@ -1,14 +1,14 @@
 package org.ktb.week6.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostRequestDto {
@@ -19,5 +19,8 @@ public class PostRequestDto {
 
     @NotBlank(message = "title_content_required")
     private String content;
+
+    @Positive(message = "invalid_temporary_post_id")
+    private Long temporaryPostId;
 
 }
