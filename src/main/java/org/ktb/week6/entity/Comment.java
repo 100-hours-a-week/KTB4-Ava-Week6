@@ -39,7 +39,7 @@ public class Comment {
     @NotNull
     private User user; // 댓글 단 유저
 
-    @OneToOne // 대댓을 기준으로 대댓은 부모를 하나만 가질 수 있음
+    @ManyToOne
     @JoinColumn(name = "parent_id") // FK(comment.comment_id) -> comment.comment_id
     private Comment parent; // 댓글의 고유 ID (대댓글인 경우에만 사용)
 

@@ -109,7 +109,7 @@ public class CommentService {
 
         // 이미 삭제된 댓글일 때
         if (comment.getStatus() == StatusType.DELETED) {
-            throw new BusinessException(HttpStatus.CONFLICT, "comment_alreay_deleted");
+            throw new BusinessException(HttpStatus.CONFLICT, "comment_already_deleted");
         }
 
         // 삭제 상태가 아닌 경우에 삭제 처리

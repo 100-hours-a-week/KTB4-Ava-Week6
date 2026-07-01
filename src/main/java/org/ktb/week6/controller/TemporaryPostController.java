@@ -27,15 +27,14 @@ public class TemporaryPostController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<TemporaryPostResponseDto>> createTemporaryPost(@Auth Long userId, @RequestPart(value = "image", required = false) MultipartFile image, @Valid @ModelAttribute TemporaryPostRequestDto request) {
-        TemporaryPostResponseDto result = temporaryPostService.createTemporaryPost(userId, request, image);
-        System.out.println(request.getTitle() + request.getContent());
+    public ResponseEntity<ApiResponse<TemporaryPostResponseDto>> createTemporaryPost(@Auth Long userId, @RequestPart(value = "file", required = false) MultipartFile file, @Valid @ModelAttribute TemporaryPostRequestDto request) {
+        TemporaryPostResponseDto result = temporaryPostService.createTemporaryPost(userId, request, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(ApiResultStatus.SUCCESS, "create_temporary_post_success", result));
     }
 
     @PatchMapping("/{temporaryId}")
-    public ResponseEntity<ApiResponse<TemporaryPostResponseDto>> updateTemporaryPost(@Auth Long userId, @PathVariable("temporaryId") Long temporaryPostId, @RequestPart(value = "image", required = false) MultipartFile image, @Valid @ModelAttribute TemporaryPostRequestDto request) {
-        TemporaryPostResponseDto result = temporaryPostService.updateTemporaryPost(userId, temporaryPostId, request, image);
+    public ResponseEntity<ApiResponse<TemporaryPostResponseDto>> updateTemporaryPost(@Auth Long userId, @PathVariable("temporaryId") Long temporaryPostId, @RequestPart(value = "file", required = false) MultipartFile file, @Valid @ModelAttribute TemporaryPostRequestDto request) {
+        TemporaryPostResponseDto result = temporaryPostService.updateTemporaryPost(userId, temporaryPostId, request, file);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.of(ApiResultStatus.SUCCESS, "temporary_post_updated_success", result));
     }
 }

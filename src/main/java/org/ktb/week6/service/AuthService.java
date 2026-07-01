@@ -3,9 +3,9 @@ package org.ktb.week6.service;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.auth.JwtProvider;
 import org.ktb.week6.dto.*;
-import org.ktb.week6.entity.File;
 import org.ktb.week6.entity.RefreshToken;
 import org.ktb.week6.entity.User;
+import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.AuthorizedException;
 import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.repository.RefreshTokenRepository;
@@ -31,6 +31,8 @@ public class AuthService {
     public AuthResultDto login(AuthRequestDto request) {
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new AuthorizedException("invalid_credentials"));
 
+        if (user.getStatus() == StatusType.DELETED) throw new AuthorizedException("invalid_credentials");
+
         if (!user.getPassword().equals(request.getPassword())) {
             throw new AuthorizedException("invalid_credentials");
         }
@@ -54,8 +56,7 @@ public class AuthService {
 
         String profileImageUrl = null;
         if (user.getFile() != null) {
-            File file = fileRepository.findById(user.getFile().getId()).orElseThrow(() -> new AuthorizedException("invalid_file"));
-            profileImageUrl = FileUtils.toFullUrl(file.getPath());
+            profileImageUrl = FileUtils.toFullUrl(user.getFile().getPath());
         }
 
         return new AuthResultDto(
@@ -71,15 +72,18 @@ public class AuthService {
 
         if (saved.isExpired()) {
             refreshTokenRepository.delete(saved);
-            throw new AuthorizedException("unauthorized");
+            throw new AuthorizedException("token_expired");
         }
 
         User user = userRepository.findById(saved.getUser().getId())
                 .orElseThrow(() -> new AuthorizedException("unauthorized"));
 
+        if (user.getStatus() == StatusType.DELETED) throw new AuthorizedException("invalid_credentials");
+
         String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getNickname());
 
         String newRefreshToken = jwtProvider.createRefreshToken(user.getId());
+
         refreshTokenRepository.delete(saved);
         refreshTokenRepository.save(
                 new RefreshToken(

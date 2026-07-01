@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLRestriction;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 })
 @Getter @Setter
 @EntityListeners(AuditingEntityListener.class)
-@SQLRestriction("deleted_at IS NULL")
 public class User {
 
     @Id

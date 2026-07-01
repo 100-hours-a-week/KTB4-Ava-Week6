@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
                 columnNames = {"post_id", "user_id"}
         )
 })
-@Getter @Setter
+@Getter
+@Setter
 @EntityListeners(AuditingEntityListener.class)
 public class Report {
 
@@ -48,7 +49,8 @@ public class Report {
     @NotNull
     private LocalDateTime createdAt;
 
-    protected Report() {}
+    protected Report() {
+    }
 
     public Report(Long id, Post post, User user, ReportReason reason) {
         this.id = id;
@@ -56,6 +58,5 @@ public class Report {
         this.status = ReportStatusType.PENDING;
         this.post = post;
         this.user = user;
-        this.createdAt = LocalDateTime.now();
     }
 }

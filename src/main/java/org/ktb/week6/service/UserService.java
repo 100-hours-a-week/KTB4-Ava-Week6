@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -47,7 +48,6 @@ public class UserService {
 
         Optional<File> newFile = fileService.storeFile(file, FileCategory.PROFILE_IMAGE);
         savedUser.updateFile(newFile.orElse(null));
-        userRepository.save(savedUser);
 
         return new UserResponseDto(savedUser);
     }
@@ -110,19 +110,20 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("user_not_found"));
 
         user.deleteUser(); // soft delete 처리
+        user.setDeletedAt(LocalDateTime.now());
     }
 
     // 중복 이메일 검사
     private void validateUniqueEmail(String email) {
         if (userRepository.existsByEmail(email)) {
-            throw new BusinessException(HttpStatus.CONFLICT, "duplicate_email");
+            throw new BusinessException(HttpStatus.CONFLICT, "email_duplicated");
         }
     }
 
     // 중복 닉네임 검사
     private void validateUniqueNickname(String nickname) {
         if (userRepository.existsByNickname(nickname)) {
-            throw new BusinessException(HttpStatus.CONFLICT, "duplicate_nickname");
+            throw new BusinessException(HttpStatus.CONFLICT, "nickname_duplicated");
         }
     }
 }

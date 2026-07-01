@@ -24,7 +24,7 @@ public class CommentResponseDto {
     public CommentResponseDto(Comment comment) {
         this.id = comment.getId();
         this.postId = comment.getPost().getId();
-        this.parentId = comment.getParent().getId();
+        this.parentId = getParentId(comment);
         this.content = comment.getStatus() == StatusType.DELETED
                 ? "삭제된 댓글입니다."
                 : comment.getContent();
@@ -37,7 +37,7 @@ public class CommentResponseDto {
     public CommentResponseDto(Comment comment, List<CommentResponseDto> comments) {
         this.id = comment.getId();
         this.postId = comment.getPost().getId();
-        this.parentId = comment.getParent() == null ? null : comment.getParent().getId();
+        this.parentId = getParentId(comment);
         this.content = comment.getStatus() == StatusType.DELETED
                 ? "삭제된 댓글입니다."
                 : comment.getContent();
@@ -45,5 +45,9 @@ public class CommentResponseDto {
         this.createdAt = comment.getCreatedAt();
         this.updatedAt = comment.getUpdatedAt();
         this.comments = comments;
+    }
+
+    private Long getParentId(Comment comment) {
+        return comment.getParent() == null ? null : comment.getParent().getId();
     }
 }

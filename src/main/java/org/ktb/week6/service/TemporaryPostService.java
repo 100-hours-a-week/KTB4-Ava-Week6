@@ -31,8 +31,9 @@ public class TemporaryPostService {
     // 임시저장 조회
     @Transactional(readOnly = true)
     public TemporaryPostResponseDto getTemporaryPost(Long userId) {
-        TemporaryPost post = temporaryPostRepository.findByUserId(userId).orElse(null);
-        return new TemporaryPostResponseDto(post);
+        return temporaryPostRepository.findByUserId(userId)
+                .map(TemporaryPostResponseDto::new)
+                .orElse(null);
     }
 
     // 임시저장 생성
@@ -57,7 +58,7 @@ public class TemporaryPostService {
                 new NotFoundException("temporary_post_not_found"));
 
         Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
-        if(!post.getUser().getId().equals(userId)) {
+        if (!post.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "temporary_post_update_forbidden");
         }
 

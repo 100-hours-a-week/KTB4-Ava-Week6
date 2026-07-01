@@ -117,6 +117,10 @@ public class PostService {
 
             // 24시간 지나면 기존 조회 이력 삭제
             postViewLogsRepository.delete(viewLogs);
+
+            // 새 로그 작성
+            PostViewLogs newViewLogs = new PostViewLogs(post, user);
+            postViewLogsRepository.save(newViewLogs);
         }
 
         return new PostResponseDto(post);

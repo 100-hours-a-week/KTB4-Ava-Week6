@@ -29,8 +29,8 @@ public class PostController {
 
     // 게시글 저장
     @PostMapping
-    public ResponseEntity<ApiResponse<PostResponseDto>> createPost(@Auth Long userId, @RequestPart(value = "image", required = false) MultipartFile image, @Valid @ModelAttribute PostRequestDto request) {
-        PostResponseDto result = postService.createPost(userId, request, image);
+    public ResponseEntity<ApiResponse<PostResponseDto>> createPost(@Auth Long userId, @RequestPart(value = "file", required = false) MultipartFile file, @Valid @ModelAttribute PostRequestDto request) {
+        PostResponseDto result = postService.createPost(userId, request, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(ApiResultStatus.SUCCESS, "create_post_success", result));
     }
 
@@ -43,8 +43,8 @@ public class PostController {
 
     // 게시글 수정
     @PatchMapping("/{postId}")
-    public ResponseEntity<ApiResponse<PostResponseDto>> updatePost(@Auth Long userId, @PathVariable Long postId, @RequestPart(value = "image", required = false) MultipartFile image, @Valid @ModelAttribute PostUpdateRequestDto request) {
-        PostResponseDto result = postService.updatePost(userId, postId, request, image);
+    public ResponseEntity<ApiResponse<PostResponseDto>> updatePost(@Auth Long userId, @PathVariable Long postId, @RequestPart(value = "file", required = false) MultipartFile file, @Valid @ModelAttribute PostUpdateRequestDto request) {
+        PostResponseDto result = postService.updatePost(userId, postId, request, file);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.of(ApiResultStatus.SUCCESS, "post_updated_success", result));
     }
 
