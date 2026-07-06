@@ -1,12 +1,13 @@
 package org.ktb.week6.config;
 
 import lombok.RequiredArgsConstructor;
-import org.ktb.week6.auth.JwtAuthenticationFilter;
-import org.ktb.week6.auth.JwtProvider;
-import org.ktb.week6.service.AuthService;
+import org.ktb.week6.jwt.JwtAuthenticationFilter;
+import org.ktb.week6.jwt.JwtProvider;
+import org.ktb.week6.service.CustomUserDetailsService;
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,6 +15,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -21,7 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
-    private final AuthService authService;
+    private final CustomUserDetailsService userDetailsService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,13 +47,48 @@ public class SecurityConfig {
                 .authorizeHttpRequests((auth) -> auth
                         // 로그인, 가입, 이미지 조회는 인증 없이도 조회 가능
                         .requestMatchers(
-                                "/auth/**",
+                                "/auth/login",
                                 "/users/register",
                                 "/public/images/**").permitAll()
                         .requestMatchers(PathRequest.toH2Console()).permitAll()
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 허용할 출처
+        configuration.setAllowedOrigins(List.of(
+                "http://127.0.0.1:5500",
+                "http://localhost:5500"
+        ));
+
+        // 허용할 HTTP 메서드 설정
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        // 허용할 HTTP 헤더 설정
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        // 브라우저에 노출할 헤더 설정
+        configuration.setExposedHeaders(List.of(HttpHeaders.AUTHORIZATION));
+
+        // 자격 증명 허용 여부
+        configuration.setAllowCredentials(true);
+
+        // 예비 요청 결과 캐시 시간 설정
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // 모든 경로에 CORS 정책 적용
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 }

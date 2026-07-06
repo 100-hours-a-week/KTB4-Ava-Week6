@@ -1,4 +1,4 @@
-package org.ktb.week6.auth;
+package org.ktb.week6.jwt;
 
 import lombok.Getter;
 import lombok.Setter;

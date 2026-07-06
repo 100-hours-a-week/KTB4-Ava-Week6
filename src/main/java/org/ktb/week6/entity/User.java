@@ -3,7 +3,6 @@ package org.ktb.week6.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -22,7 +21,7 @@ import java.time.LocalDateTime;
                 columnNames = {"nickname"}
         )
 })
-@Getter @Setter
+@Getter
 @EntityListeners(AuditingEntityListener.class)
 public class User {
 
@@ -88,5 +87,9 @@ public class User {
 
     public void updateFile(File file) {
         this.file = file;
+    }
+
+    public void setDeletedAt(LocalDateTime now) {
+        this.deletedAt = now;
     }
 }

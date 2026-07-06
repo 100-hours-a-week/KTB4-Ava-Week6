@@ -1,8 +1,8 @@
 package org.ktb.week6;
 
 import lombok.RequiredArgsConstructor;
-import org.ktb.week6.auth.JwtProvider;
 import org.ktb.week6.exception.AuthorizedException;
+import org.ktb.week6.jwt.JwtProvider;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;

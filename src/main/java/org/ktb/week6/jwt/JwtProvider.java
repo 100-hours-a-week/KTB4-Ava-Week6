@@ -1,4 +1,4 @@
-package org.ktb.week6.auth;
+package org.ktb.week6.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -73,6 +73,16 @@ public class JwtProvider {
                 .verifyWith((SecretKey) key)
                 .build()
                 .parseSignedClaims(token);
+    }
+
+    // 토큰 유효성 검사
+    public boolean validateToken(String token) {
+        try {
+            Jws<Claims> claims = this.parse(token);
+            return !claims.getPayload().getExpiration().before(new Date());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // 토큰 타입 구분

@@ -38,3 +38,6 @@ out/
 .vscode/
 
 .env
+
+### 클라이언트 이미지 업로드 폴더 ###
+/uploads/images/

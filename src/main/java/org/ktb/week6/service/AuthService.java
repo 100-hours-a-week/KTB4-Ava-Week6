@@ -1,16 +1,16 @@
 package org.ktb.week6.service;
 
 import lombok.RequiredArgsConstructor;
-import org.ktb.week6.auth.JwtProvider;
+import org.ktb.week6.jwt.JwtProvider;
 import org.ktb.week6.dto.*;
 import org.ktb.week6.entity.RefreshToken;
 import org.ktb.week6.entity.User;
 import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.AuthorizedException;
-import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.repository.RefreshTokenRepository;
 import org.ktb.week6.repository.UserRepository;
 import org.ktb.week6.utils.FileUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final FileRepository fileRepository;
+    private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
     // 로그인
