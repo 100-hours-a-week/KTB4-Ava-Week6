@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.of(ApiResultStatus.FAIL, "지원하지 않는 HTTP 메서드입니다.", null));
     }
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiResponse<Void>> handTypeMismacth(MethodArgumentTypeMismatchException e) {
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         return ResponseEntity.badRequest().body(ApiResponse.of(ApiResultStatus.FAIL, "요청 파라미터 타입이 올바르지 않습니다.", null));
     }
 

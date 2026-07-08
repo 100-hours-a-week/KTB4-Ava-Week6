@@ -1,8 +1,6 @@
 package org.ktb.week6.service;
 
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.dto.UserRegisterRequestDto;
 import org.ktb.week6.dto.UserResponseDto;
@@ -13,9 +11,9 @@ import org.ktb.week6.entity.User;
 import org.ktb.week6.enums.FileCategory;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
-import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -30,17 +28,19 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final FileService fileService;
-    private final FileRepository fileRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // 회원가입
+    // 회원 생성
     @Transactional
     public UserResponseDto createUser(UserRegisterRequestDto request, MultipartFile file) {
-        validateUniqueEmail(request.getEmail());
-        validateUniqueNickname(request.getNickname());
+        if (!validateUniqueEmail(request.getEmail()))
+            throw new BusinessException(HttpStatus.CONFLICT, "email_duplicated");
+        if (!validateUniqueNickname(request.getNickname()))
+            throw new BusinessException(HttpStatus.CONFLICT, "nickname_duplicated");
 
         User user = new User(
                 request.getEmail(),
-                request.getPassword(),
+                passwordEncoder.encode(request.getPassword()),
                 request.getNickname()
         );
 
@@ -61,7 +61,7 @@ public class UserService {
 
     // 회원 정보 수정
     @Transactional
-    public UserResponseDto updateUserInfo(Long userId, @Valid UserUpdateInfoRequestDto request, MultipartFile file) {
+    public UserResponseDto updateUserInfo(Long userId, UserUpdateInfoRequestDto request, MultipartFile file) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("user_not_found"));
@@ -92,38 +92,40 @@ public class UserService {
 
     // 비밀번호 수정
     @Transactional
-    public void updatePassword(@Positive Long userId, @Valid UserUpdatePasswordRequestDto request) {
+    public void updatePassword(Long userId, UserUpdatePasswordRequestDto request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("user_not_found"));
 
-        if (!user.getPassword().equals(request.getOldPassword())) {
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "invalid_old_password");
         }
 
-        user.updatePassword(request.getNewPassword());
+        String encodedNewPassword = passwordEncoder.encode(request.getNewPassword());
+
+        user.updatePassword(encodedNewPassword);
     }
 
-    // 회원 탈퇴
+    // 회원 삭제 (soft delete)
     @Transactional
-    public void deleteUser(@Positive Long userId) {
+    public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("user_not_found"));
 
         user.deleteUser(); // soft delete 처리
-        user.setDeletedAt(LocalDateTime.now());
+        user.insertDeletedAt(LocalDateTime.now());
     }
 
     // 중복 이메일 검사
-    private void validateUniqueEmail(String email) {
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException(HttpStatus.CONFLICT, "email_duplicated");
-        }
+    private Boolean validateUniqueEmail(String email) {
+        if (userRepository.existsByEmail(email))
+            return false;
+        return true;
     }
 
     // 중복 닉네임 검사
-    private void validateUniqueNickname(String nickname) {
-        if (userRepository.existsByNickname(nickname)) {
-            throw new BusinessException(HttpStatus.CONFLICT, "nickname_duplicated");
-        }
+    private Boolean validateUniqueNickname(String nickname) {
+        if (userRepository.existsByNickname(nickname))
+            return false;
+        return true;
     }
 }

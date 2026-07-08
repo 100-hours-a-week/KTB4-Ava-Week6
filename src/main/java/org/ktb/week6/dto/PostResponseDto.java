@@ -14,7 +14,8 @@ public class PostResponseDto {
     private String nickname;
     private String title;
     private String content;
-    private String imageUrl;
+    private String postImageUrl;
+    private String userImageUrl;
     private Boolean isEdited;
     private Long likeCount;
     private Long commentCount;
@@ -27,7 +28,8 @@ public class PostResponseDto {
         this.nickname = post.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : post.getUser().getNickname();
         this.title = post.getStatus() == StatusType.BLIND ? "숨김 처리된 게시글입니다." : post.getTitle();
         this.content = post.getStatus() == StatusType.BLIND ? "누적 신고 5회 이상으로 숨겨진 게시글입니다." : post.getContent();
-        this.imageUrl = post.getFile() == null ? null : post.getFile().getUrl();
+        this.postImageUrl = post.getFile() == null ? null : post.getFile().getUrl();
+        this.userImageUrl = post.getUser().getFile() == null ? null : post.getUser().getFile().getUrl();
         this.isEdited = post.getIsEdited();
         this.likeCount = post.getLikeCount();
         this.commentCount = post.getCommentCount();

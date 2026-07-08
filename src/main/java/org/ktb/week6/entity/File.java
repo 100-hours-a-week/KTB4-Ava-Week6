@@ -1,9 +1,7 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.FileCategory;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -13,29 +11,28 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter
 @EntityListeners(AuditingEntityListener.class)
 public class File {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull
+    @Column(nullable = false)
     private String path;
 
-    @NotNull
+    @Column(nullable = false)
     private String url;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private FileCategory category;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     private LocalDateTime deletedAt;

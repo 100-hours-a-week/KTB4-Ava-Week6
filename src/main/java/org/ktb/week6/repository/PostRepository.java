@@ -1,6 +1,9 @@
 package org.ktb.week6.repository;
 
 import org.ktb.week6.entity.Post;
+import org.ktb.week6.enums.StatusType;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,6 +11,8 @@ import java.util.List;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
-    List<Post> findAllByOrderByCreatedAtDesc();
-}
 
+    @EntityGraph(attributePaths = {"user", "user.file", "file"})
+    List<Post> findByStatusNotAndIdLessThanOrderByIdDesc(StatusType status, Long cursorId, Pageable pageable);
+
+}

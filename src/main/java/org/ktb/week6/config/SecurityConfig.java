@@ -1,5 +1,6 @@
 package org.ktb.week6.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.jwt.JwtAuthenticationFilter;
 import org.ktb.week6.jwt.JwtProvider;
@@ -37,7 +38,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 기본 설정 비활성와
+                // 기본 설정 비활성화
                 .httpBasic((basic) -> basic.disable()) // UI를 사용하는 기본 인증 비활성화
                 .csrf(csrf -> csrf.disable()) // API 서버라 필요없음
 
@@ -49,9 +50,26 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/login",
                                 "/users/register",
+                                "/auth/refresh",
                                 "/public/images/**").permitAll()
                         .requestMatchers(PathRequest.toH2Console()).permitAll()
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
+                )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("""
+                                    {"success":false,"message":"unauthorized","data":null}
+                                    """);
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("""
+                                    {"success":false,"message":"forbidden","data":null}
+                                    """);
+                        })
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));

@@ -16,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,11 +65,9 @@ public class CommentService {
                         comment -> comment.getParent().getId()
                 ));
 
-        Map<Long, User> userCache = new HashMap<>();
-
         return comments.stream()
                 .filter(comment -> comment.getParent() == null)
-                .map(comment -> toCommentResponseDto(comment, childrenMap, userCache))
+                .map(comment -> toCommentResponseDto(comment, childrenMap))
                 .toList();
     }
 
@@ -113,7 +110,7 @@ public class CommentService {
         }
 
         // 삭제 상태가 아닌 경우에 삭제 처리
-        comment.updateStatus(StatusType.DELETED);
+        comment.updateStatusDeleted();
         post.decreaseCommentCount();
     }
 
@@ -152,19 +149,13 @@ public class CommentService {
     // responseDto에 맞게 변환
     private CommentResponseDto toCommentResponseDto(
             Comment comment,
-            Map<Long, List<Comment>> childrenMap,
-            Map<Long, User> userCache
+            Map<Long, List<Comment>> childrenMap
     ) {
-        User user = userCache.computeIfAbsent(
-                comment.getUser().getId(),
-                userId -> userRepository.findById(userId)
-                        .orElseThrow(() -> new NotFoundException("user_not_found"))
-        );
 
         List<CommentResponseDto> childComments = childrenMap
                 .getOrDefault(comment.getId(), List.of())
                 .stream()
-                .map(child -> toCommentResponseDto(child, childrenMap, userCache))
+                .map(child -> toCommentResponseDto(child, childrenMap))
                 .toList();
 
         return new CommentResponseDto(comment, childComments);

@@ -1,9 +1,7 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -13,42 +11,40 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter
 @EntityListeners(AuditingEntityListener.class)
 public class Comment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // 댓글 고유 ID
 
-    @NotNull
+    @Column(nullable = false)
     private String content; // 댓글 내용
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private StatusType status; // 댓글 상태 (ACTIVE, DELETED)
 
-    @NotNull
+    @Column(nullable = false)
     private Boolean isEdited; // 수정 여부 (수정됨 표기용)
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id") // FK (comment.post_id) -> post.post_id
     private Post post; // 댓글 단 게시글
 
-    @ManyToOne
-    @JoinColumn(name = "user_id") // FK (comment.user_id) -> comment.comment_id
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false) // FK (comment.user_id) -> user.id
     private User user; // 댓글 단 유저
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id") // FK(comment.comment_id) -> comment.comment_id
     private Comment parent; // 댓글의 고유 ID (대댓글인 경우에만 사용)
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     private LocalDateTime deletedAt;
@@ -65,13 +61,24 @@ public class Comment {
         this.parent = parentComment;
     }
 
+    public void updateStatusBlind() {
+        this.status = StatusType.BLIND;
+    }
+
     public void updateContent(String newContent) {
         this.content = newContent;
         this.isEdited = true;
     }
 
-    public void updateStatus(StatusType status) {
-        this.status = status;
+    public void updateStatusDeleted() {
+        this.status = StatusType.DELETED;
     }
 
+    public void setIsEditedTrue() {
+        this.isEdited = true;
+    }
+
+    public void setDeletedAt(LocalDateTime now) {
+        this.deletedAt = now;
+    }
 }

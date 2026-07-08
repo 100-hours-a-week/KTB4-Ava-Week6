@@ -24,6 +24,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
 
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        return "/auth/refresh".equals(request.getServletPath());
+    }
+
     // 필터 적용
     @Override
     protected void doFilterInternal(
@@ -35,11 +40,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         // 토큰 유효성 검사
-        if (token != null && jwtProvider.validateToken(token) && jwtProvider.isAccessToken(token)) {
+        if (token != null) {
+            if (!jwtProvider.validateToken(token) || !jwtProvider.isAccessToken(token)) {
+                // 토큰이 만료됐거나 액세스 토큰이 아닌 경우
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("""
+                        {"success":false,"message":"invalid_or_expired_token","data":null}
+                        """);
+                return;
+            }
             Claims claims = jwtProvider.parse(token).getPayload();
             String email = claims.get("email").toString();
+
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
             Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
@@ -48,7 +64,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer")) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
         return null;

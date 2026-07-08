@@ -1,6 +1,7 @@
 package org.ktb.week6.service;
 
 import lombok.RequiredArgsConstructor;
+import org.ktb.week6.dto.CustomUserDetails;
 import org.ktb.week6.entity.User;
 import org.ktb.week6.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,9 +20,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException(email));
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(String.valueOf(user.getId()))
-                .password(user.getPassword())
-                .build();
+        return new CustomUserDetails(user.getId(), user.getEmail(), user.getPassword());
     }
 }

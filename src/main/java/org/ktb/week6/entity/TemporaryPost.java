@@ -1,10 +1,8 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
-import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -18,7 +16,7 @@ import java.time.LocalDateTime;
                 columnNames = {"user_id"}
         )
 })
-@Getter @Setter
+@Getter
 @EntityListeners(AuditingEntityListener.class)
 public class TemporaryPost {
     @Id
@@ -30,20 +28,20 @@ public class TemporaryPost {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id")
     private File file;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     protected TemporaryPost() {}

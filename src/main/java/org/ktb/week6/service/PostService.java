@@ -15,12 +15,13 @@ import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.*;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Comparator;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,27 +44,25 @@ public class PostService {
     @Transactional(readOnly = true)
     public PostListResponseDto getPosts(Long cursorId) {
         Long currentCursorId = cursorId == null ? Long.MAX_VALUE : cursorId;
-        List<Post> activePosts = postRepository.findAllByOrderByCreatedAtDesc().stream()
-                .filter(post -> !post.getStatus().equals(StatusType.DELETED))
-                .toList();
+        List<Post> activePosts = postRepository.findByStatusNotAndIdLessThanOrderByIdDesc(StatusType.DELETED, currentCursorId, Pageable.ofSize(POST_PAGE_SIZE + 1));
 
-        long totalPosts = activePosts.size();
-        List<Post> cursorPosts = activePosts.stream()
-                .filter(post -> post.getId() < currentCursorId)
-                .sorted(Comparator.comparing(Post::getId).reversed())
-                .limit(POST_PAGE_SIZE + 1)
-                .toList();
+        boolean hasNext = activePosts.size() > POST_PAGE_SIZE;
 
-        boolean hasNext = cursorPosts.size() > POST_PAGE_SIZE;
-        List<Post> pagePosts = hasNext ? cursorPosts.subList(0, POST_PAGE_SIZE) : cursorPosts;
-        Long responseNextCursorId = hasNext ? pagePosts.getLast().getId() : null;
+        List<Post> pagePosts = hasNext
+                ? activePosts.subList(0, POST_PAGE_SIZE)
+                : activePosts;
+
+        Long responseNextCursorId = hasNext
+                ? pagePosts.getLast().getId()
+                : null;
+
         List<PostResponseDto> posts = pagePosts.stream()
                 .map(this::toPostResponseDto)
                 .toList();
 
         return new PostListResponseDto(
                 posts,
-                new PostListResponseDto.Pagination(totalPosts, responseNextCursorId, hasNext)
+                new PostListResponseDto.Pagination(responseNextCursorId, hasNext)
         );
     }
 
@@ -105,22 +104,21 @@ public class PostService {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
+        LocalDateTime now = LocalDateTime.now();
+
         PostViewLogs viewLogs = postViewLogsRepository.findByPostIdAndUserId(postId, userId).orElse(null);
-        // 24시간 내 중복 조회수 제한 - 아직 본 적 없을 때
-        if(viewLogs == null) {
-            PostViewLogs newViewLogs = new PostViewLogs(post, user);
+        // 24시간 내 중복 조회수 제한
+        if (viewLogs == null) {
+            // 조회 이력 없으면 새로 생성
+            PostViewLogs newViewLogs = new PostViewLogs(post, user, now);
             postViewLogsRepository.save(newViewLogs);
-
             post.increaseViewCount();
-        } else if (viewLogs.isExpired()) {
-            post.increaseViewCount();
-
-            // 24시간 지나면 기존 조회 이력 삭제
-            postViewLogsRepository.delete(viewLogs);
-
-            // 새 로그 작성
-            PostViewLogs newViewLogs = new PostViewLogs(post, user);
-            postViewLogsRepository.save(newViewLogs);
+        } else {
+            if (viewLogs.canIncreaseViewCount(now)) {
+                // 조회 이력 있고 24시간 내 조회하지 않았으면 업데이트
+                viewLogs.updateLastViewedAt(now);
+                post.increaseViewCount();
+            }
         }
 
         return new PostResponseDto(post);

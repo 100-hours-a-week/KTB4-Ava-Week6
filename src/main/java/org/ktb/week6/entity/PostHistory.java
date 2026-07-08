@@ -1,10 +1,8 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.ActionType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -18,7 +16,7 @@ import java.time.LocalDateTime;
                 columnNames = {"post_id", "version"}
         )
 })
-@Getter @Setter
+@Getter
 @EntityListeners(AuditingEntityListener.class)
 public class PostHistory {
     @Id
@@ -26,7 +24,7 @@ public class PostHistory {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private ActionType action;
 
     @Column(length = 26)
@@ -35,26 +33,24 @@ public class PostHistory {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @NotNull
+    @Column(nullable = false)
     @Positive
     private Long version;
 
-    @ManyToOne()
-    @JoinColumn(name = "post_id")
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
-    @ManyToOne()
-    @JoinColumn(name = "user_id")
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id")
     private File file;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     protected PostHistory() {}

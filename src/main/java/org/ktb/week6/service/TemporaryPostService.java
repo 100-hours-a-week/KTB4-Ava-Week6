@@ -29,14 +29,14 @@ public class TemporaryPostService {
     private final FileService fileService;
 
     // 임시저장 조회
-    @Transactional(readOnly = true)
+    @Transactional
     public TemporaryPostResponseDto getTemporaryPost(Long userId) {
         return temporaryPostRepository.findByUserId(userId)
                 .map(TemporaryPostResponseDto::new)
                 .orElse(null);
     }
 
-    // 임시저장 생성
+    // 임시저장 생성/갱신
     @Transactional
     public TemporaryPostResponseDto createTemporaryPost(Long userId, @Valid TemporaryPostRequestDto request, MultipartFile image) {
         User user = userRepository.findById(userId).orElseThrow(() ->
@@ -44,9 +44,23 @@ public class TemporaryPostService {
 
         Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
 
-        TemporaryPost post = new TemporaryPost(request.getTitle(), request.getContent(), user, file.orElse(null));
+        TemporaryPost savedPost = temporaryPostRepository.findByUserId(userId)
+                .map(post -> {
+                    post.updateTitle(request.getTitle());
+                    post.updateContent(request.getContent());
+                    post.updateFile(file.orElse(null));
+                    return post;
+                })
+                .orElseGet(() -> {
+                    TemporaryPost newPost = new TemporaryPost(
+                            request.getTitle(),
+                            request.getContent(),
+                            user,
+                            file.orElse(null)
+                    );
 
-        TemporaryPost savedPost = temporaryPostRepository.save(post);
+                    return temporaryPostRepository.save(newPost);
+                });
 
         return new TemporaryPostResponseDto(savedPost);
     }
@@ -57,11 +71,11 @@ public class TemporaryPostService {
         TemporaryPost post = temporaryPostRepository.findById(temporaryId).orElseThrow(() ->
                 new NotFoundException("temporary_post_not_found"));
 
-        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
         if (!post.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "temporary_post_update_forbidden");
         }
 
+        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
         post.updateTitle(request.getTitle());
         post.updateContent(request.getContent());
         post.updateFile(file.orElse(null));

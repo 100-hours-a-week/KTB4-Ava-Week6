@@ -1,9 +1,7 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -16,7 +14,7 @@ import java.time.LocalDateTime;
                 columnNames = {"post_id", "user_id"}
         )
 })
-@Getter @Setter
+@Getter
 @EntityListeners(AuditingEntityListener.class)
 public class PostViewLogs {
 
@@ -26,28 +24,34 @@ public class PostViewLogs {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne()
-    @JoinColumn(name = "post_id")
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
-    @ManyToOne()
-    @JoinColumn(name = "user_id")
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
+    private LocalDateTime lastViewedAt;
 
     protected PostViewLogs() {}
 
-    public PostViewLogs(Post post, User user) {
+    public PostViewLogs(Post post, User user, LocalDateTime lastViewedAt) {
         this.post = post;
         this.user = user;
+        this.lastViewedAt = lastViewedAt;
     }
 
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(createdAt.plusHours(EXPIRATION_HOURS));
+    public boolean canIncreaseViewCount(LocalDateTime now) {
+        return !lastViewedAt.plusHours(24).isAfter(now);
+    }
+
+    public void updateLastViewedAt(LocalDateTime now) {
+        this.lastViewedAt = now;
     }
 }

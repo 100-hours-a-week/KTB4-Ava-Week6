@@ -14,7 +14,6 @@ public class PostListResponseDto {
     @Getter
     @AllArgsConstructor
     public static class Pagination {
-        private long totalPosts;
         private Long nextCursorId;
         private boolean hasNext;
     }

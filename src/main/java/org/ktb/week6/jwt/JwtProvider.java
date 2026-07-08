@@ -30,6 +30,7 @@ public class JwtProvider {
     }
 
     // 토큰 생성(access, refresh 공통)
+    // TODO: 토큰 암호화
     private String createToken(
             String type,
             Long userId,

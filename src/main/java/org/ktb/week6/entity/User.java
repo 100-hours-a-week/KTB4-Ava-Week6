@@ -1,7 +1,6 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
@@ -29,34 +28,35 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull
+    @Column(nullable = false)
     private String email;
 
-    @NotNull
+    @Column(nullable = false)
     private String password;
 
-    @NotNull
+    @Column(nullable = false)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private StatusType status;
 
-    @OneToOne()
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id") // FK (user.file_id) -> file.id
     private File file;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     private LocalDateTime deletedAt;
 
-    protected User() {}
+    protected User() {
+    }
 
     public User(String email, String password, String nickname) {
         this.email = email;
@@ -89,7 +89,7 @@ public class User {
         this.file = file;
     }
 
-    public void setDeletedAt(LocalDateTime now) {
+    public void insertDeletedAt(LocalDateTime now) {
         this.deletedAt = now;
     }
 }

@@ -2,10 +2,8 @@ package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.StatusType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -16,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter @Setter
+@Getter
 @EntityListeners(AuditingEntityListener.class)
 public class Post {
 
@@ -24,51 +22,48 @@ public class Post {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 26)
-    @NotNull
+    @Column(length = 26, nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
-    @NotNull
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    @NotNull
+    @Column(nullable = false)
     private Long viewCount;
 
-    @NotNull
+    @Column(nullable = false)
     private Long likeCount;
 
-    @NotNull
+    @Column(nullable = false)
     private Long commentCount;
 
-    @NotNull
+    @Column(nullable = false)
     private Long reportCount;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private StatusType status;
 
-    @NotNull
+    @Column(nullable = false)
     private Boolean isEdited;
 
-    @ManyToOne()
-    @JoinColumn(name = "user_id") // FK(post.user_id) -> user.user_id
-    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id")
     private File file;
 
-    @OneToMany(mappedBy = "post")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "post")
     private List<Comment> comment = new ArrayList<>();
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     private LocalDateTime deletedAt;
@@ -137,5 +132,13 @@ public class Post {
 
     public void increaseReportCount() {
         this.reportCount++;
+    }
+
+    public void setViewCount(long viewCount) {
+        this.viewCount = viewCount;
+    }
+
+    public void setIsEdited(boolean isEdited) {
+        this.isEdited = isEdited;
     }
 }

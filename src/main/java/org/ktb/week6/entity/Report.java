@@ -1,9 +1,7 @@
 package org.ktb.week6.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 import org.ktb.week6.enums.ReportReason;
 import org.ktb.week6.enums.ReportStatusType;
 import org.springframework.data.annotation.CreatedDate;
@@ -19,7 +17,6 @@ import java.time.LocalDateTime;
         )
 })
 @Getter
-@Setter
 @EntityListeners(AuditingEntityListener.class)
 public class Report {
 
@@ -28,25 +25,23 @@ public class Report {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private ReportReason reason;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Column(nullable = false)
     private ReportStatusType status;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "post_id")
-    @NotNull
+    @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
-    @NotNull
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @CreatedDate
-    @NotNull
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     protected Report() {
@@ -58,5 +53,13 @@ public class Report {
         this.status = ReportStatusType.PENDING;
         this.post = post;
         this.user = user;
+    }
+
+    public void updateStatusPending() {
+        this.status = ReportStatusType.PENDING;
+    }
+
+    public void updateStatusReviewed() {
+        this.status = ReportStatusType.REVIEWED;
     }
 }
