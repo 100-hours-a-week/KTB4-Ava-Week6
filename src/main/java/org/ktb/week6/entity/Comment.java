@@ -72,13 +72,7 @@ public class Comment {
 
     public void updateStatusDeleted() {
         this.status = StatusType.DELETED;
+        this.deletedAt = LocalDateTime.now();
     }
 
-    public void setIsEditedTrue() {
-        this.isEdited = true;
-    }
-
-    public void setDeletedAt(LocalDateTime now) {
-        this.deletedAt = now;
-    }
 }

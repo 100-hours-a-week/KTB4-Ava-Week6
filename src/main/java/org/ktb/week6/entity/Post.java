@@ -133,12 +133,4 @@ public class Post {
     public void increaseReportCount() {
         this.reportCount++;
     }
-
-    public void setViewCount(long viewCount) {
-        this.viewCount = viewCount;
-    }
-
-    public void setIsEdited(boolean isEdited) {
-        this.isEdited = isEdited;
-    }
 }

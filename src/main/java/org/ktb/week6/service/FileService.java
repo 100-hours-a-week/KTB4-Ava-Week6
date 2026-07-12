@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.enums.FileCategory;
 import org.ktb.week6.exception.BusinessException;
-import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.utils.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,21 +60,8 @@ public class FileService {
         }
     }
 
-    // 파일 URL 변환 (파일 ID 기반)
-    public String getFileUrl(Long fileId) {
-        File file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new NotFoundException("file_not_found"));
-
-        return FileUtils.toFullUrl(file.getPath());
-    }
-
     // 파일 URL 변환 (파일 경로 기반)
     public String getFileUrl(String path) {
         return FileUtils.toFullUrl(path);
-    }
-
-    // 파일 삭제
-    public void deleteFile(Long fileId) {
-        fileRepository.deleteById(fileId);
     }
 }

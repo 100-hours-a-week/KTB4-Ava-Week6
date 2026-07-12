@@ -8,6 +8,7 @@ import org.ktb.week6.dto.UserUpdateInfoRequestDto;
 import org.ktb.week6.dto.UserUpdatePasswordRequestDto;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.entity.User;
+import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.enums.FileCategory;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
@@ -55,7 +56,7 @@ public class UserService {
     // 회원 정보 조회
     @Transactional(readOnly = true)
     public UserResponseDto getUser(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+        User user = findActiveUser(userId);
         return new UserResponseDto(user);
     }
 
@@ -63,8 +64,7 @@ public class UserService {
     @Transactional
     public UserResponseDto updateUserInfo(Long userId, UserUpdateInfoRequestDto request, MultipartFile file) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("user_not_found"));
+        User user = findActiveUser(userId);
 
         boolean hasNickname = request.getNickname() != null && !request.getNickname().isBlank();
         boolean hasFile = file != null && !file.isEmpty();
@@ -75,7 +75,8 @@ public class UserService {
         }
 
         if (hasNickname) {
-            validateUniqueNickname(request.getNickname());
+            if (!validateUniqueNickname(request.getNickname()))
+                throw new BusinessException(HttpStatus.CONFLICT, "nickname_duplicated");
             user.updateNickname(request.getNickname());
         }
 
@@ -108,11 +109,21 @@ public class UserService {
     // 회원 삭제 (soft delete)
     @Transactional
     public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("user_not_found"));
+        User user = findActiveUser(userId);
 
         user.deleteUser(); // soft delete 처리
         user.insertDeletedAt(LocalDateTime.now());
+    }
+
+    private User findActiveUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("user_not_found"));
+
+        if (user.getStatus() == StatusType.DELETED) {
+            throw new NotFoundException("user_not_found");
+        }
+
+        return user;
     }
 
     // 중복 이메일 검사
