@@ -8,6 +8,14 @@ group = 'org.ktb'
 version = '0.0.1-SNAPSHOT'
 description = 'week6'
 
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)

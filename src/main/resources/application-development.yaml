@@ -1,0 +1,15 @@
+spring:
+  h2:
+    console:
+      enabled: false
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core:
+            StatementCreatorUtils: INFO
+            JdbcTemplate: INFO
+      hibernate:
+        SQL: INFO

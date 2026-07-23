@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ktb.week6.jwt.JwtAuthenticationFilter;
 import org.ktb.week6.jwt.JwtProvider;
 import org.ktb.week6.service.CustomUserDetailsService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,9 @@ public class SecurityConfig {
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
 
+    @Value("${spring.h2.console.enabled:false}")
+    private boolean h2ConsoleEnabled;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -45,16 +49,20 @@ public class SecurityConfig {
                 // 세션 미사용 설정
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests((auth) -> auth
-                        // 로그인, 가입, 이미지 조회는 인증 없이도 조회 가능
-                        .requestMatchers(
-                                "/auth/login",
-                                "/users/register",
-                                "/auth/refresh",
-                                "/public/images/**").permitAll()
-                        .requestMatchers(PathRequest.toH2Console()).permitAll()
-                        .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(
+                            "/auth/login",
+                            "/users/register",
+                            "/auth/refresh",
+                            "/public/images/**"
+                    ).permitAll();
+
+                    if (h2ConsoleEnabled) {
+                        auth.requestMatchers(PathRequest.toH2Console()).permitAll();
+                    }
+
+                    auth.anyRequest().authenticated();
+                })
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -84,7 +92,9 @@ public class SecurityConfig {
         // 허용할 출처
         configuration.setAllowedOrigins(List.of(
                 "http://127.0.0.1:5500",
-                "http://localhost:5500"
+                "http://localhost:5500",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
         ));
 
         // 허용할 HTTP 메서드 설정
