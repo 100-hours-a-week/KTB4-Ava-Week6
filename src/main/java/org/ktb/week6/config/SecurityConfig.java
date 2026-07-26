@@ -91,10 +91,12 @@ public class SecurityConfig {
 
         // 허용할 출처
         configuration.setAllowedOrigins(List.of(
-                "http://127.0.0.1:5500",
                 "http://localhost:5500",
+                "http://127.0.0.1:5500",
                 "http://localhost:5173",
-                "http://127.0.0.1:5173"
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
         ));
 
         // 허용할 HTTP 메서드 설정

@@ -1,12 +1,12 @@
 package org.ktb.week6.service;
 
 import lombok.RequiredArgsConstructor;
+import org.ktb.week6.config.FileProperties;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.enums.FileCategory;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.repository.FileRepository;
 import org.ktb.week6.utils.FileUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +22,7 @@ import java.util.Optional;
 public class FileService {
 
     private final FileRepository fileRepository;
-
-    @Value("${file.upload-dir}")
-    private String uploadDir;
+    private final FileProperties fileProperties;
 
     // 파일 저장
     @Transactional
@@ -36,7 +34,7 @@ public class FileService {
         FileUtils.validateImageFile(file);
 
         try {
-            Path root = Path.of(uploadDir)
+            Path root = Path.of(fileProperties.uploadDir())
                     .toAbsolutePath()
                     .normalize();
 
