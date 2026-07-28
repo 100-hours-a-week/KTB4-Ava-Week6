@@ -47,6 +47,8 @@ public class CommentResponseDto {
         this.content = comment.getStatus() == StatusType.DELETED
                 ? "삭제된 댓글입니다."
                 : comment.getContent();
+        this.isDeleted = comment.getStatus() == StatusType.DELETED;
+        this.isEdited = comment.getIsEdited();
         this.nickname = comment.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : comment.getUser().getNickname();
         this.createdAt = comment.getCreatedAt();
         this.updatedAt = comment.getUpdatedAt();
