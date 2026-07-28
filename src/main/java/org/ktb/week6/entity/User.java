@@ -41,6 +41,8 @@ public class User {
     @Column(nullable = false)
     private StatusType status;
 
+    private String deleteReason;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id") // FK (user.file_id) -> file.id
     private File file;
@@ -83,6 +85,10 @@ public class User {
 
     public void deleteUser() {
         this.status = StatusType.DELETED;
+    }
+
+    public void insertDeletedReason(String reason) {
+        this.deleteReason = reason;
     }
 
     public void updateFile(File file) {

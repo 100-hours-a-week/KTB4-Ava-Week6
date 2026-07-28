@@ -76,7 +76,7 @@ public class PostService {
 
         Post post = new Post(request.getTitle(), request.getContent(), user, file.orElse(null));
 
-        Post savedPost = postRepository.save(post);
+        postRepository.save(post);
 
         // 임시저장 이력도 함께 삭제
         if (request.getTemporaryPostId() != null) {
@@ -90,7 +90,7 @@ public class PostService {
 
         postHistoryRepository.save(postHistory);
 
-        return new PostResponseDto(savedPost);
+        return new PostResponseDto(post);
     }
 
     // 게시글 상세 조회
@@ -121,13 +121,16 @@ public class PostService {
             }
         }
 
-        return new PostResponseDto(post);
+        boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
+        return new PostResponseDto(post, isLiked);
     }
 
     // 게시글 수정
     @Transactional
     public PostResponseDto updatePost(@Positive Long userId, @Positive Long postId, @Valid PostUpdateRequestDto request, MultipartFile image) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+
         validatePostIsNotDeleted(post);
 
         // 수정자 권한 체크
@@ -159,11 +162,12 @@ public class PostService {
         Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
 
         // 이력 저장
-        PostHistory postHistory = new PostHistory(ActionType.UPDATE, post.getTitle(), post.getContent(), nextVersion, post, post.getUser(), post.getFile());
+        PostHistory postHistory = new PostHistory(ActionType.UPDATE, post.getTitle(), post.getContent(), nextVersion, post, user, post.getFile());
 
         postHistoryRepository.save(postHistory);
 
-        return new PostResponseDto(post);
+        boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
+        return new PostResponseDto(post, isLiked);
     }
 
     // 게시글 삭제
@@ -195,21 +199,21 @@ public class PostService {
         validatePostIsNotDeleted(post);
 
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+        Optional<Like> like = likeRepository.findByPostAndUser(post, user);
+        boolean isLiked;
 
         // 이미 좋아요 눌렀으면 제거
-        likeRepository.findByPostAndUser(post, user)
-                .ifPresentOrElse(
-                        like -> {
-                            likeRepository.delete(like);
-                            post.decreaseLikeCount();
-                        },
-                        () -> {
-                            likeRepository.save(new Like(post, user));
-                            post.increaseLikeCount();
-                        }
-                );
+        if (like.isPresent()) {
+            likeRepository.delete(like.get());
+            post.decreaseLikeCount();
+            isLiked = false;
+        } else {
+            likeRepository.save(new Like(post, user));
+            post.increaseLikeCount();
+            isLiked = true;
+        }
 
-        return new PostResponseDto(post);
+        return new PostResponseDto(post, isLiked);
     }
 
     // 게시글 신고

@@ -20,9 +20,6 @@ public class File {
     @Column(nullable = false)
     private String path;
 
-    @Column(nullable = false)
-    private String url;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FileCategory category;
@@ -40,9 +37,8 @@ public class File {
     protected File() {
     }
 
-    public File(String path, String url, FileCategory category) {
+    public File(String path, FileCategory category) {
         this.path = path;
-        this.url = url;
         this.category = category;
     }
 }

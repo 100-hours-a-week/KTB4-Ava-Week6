@@ -12,7 +12,9 @@ import org.ktb.week6.entity.User;
 import org.ktb.week6.exception.UnauthorizedException;
 import org.ktb.week6.jwt.JwtProvider;
 import org.ktb.week6.repository.RefreshTokenRepository;
+import org.ktb.week6.repository.TokenBlacklistRepository;
 import org.ktb.week6.repository.UserRepository;
+import org.ktb.week6.utils.TokenUtils;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -39,6 +41,9 @@ class AuthServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private TokenBlacklistRepository tokenBlacklistRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -84,7 +89,7 @@ class AuthServiceTest {
     @DisplayName("로그인에 성공한다")
     void login_success() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken); // 리프레시 토큰 해시값 미리 계산
+        String hashedRefreshToken = TokenUtils.hash(refreshToken); // 리프레시 토큰 해시값 미리 계산
 
         given(userRepository.findByEmail(email)).willReturn(Optional.of(savedUser));
         given(passwordEncoder.matches(password, encodedPassword)).willReturn(true);
@@ -170,8 +175,8 @@ class AuthServiceTest {
     @DisplayName("액세스 토큰 재발급에 성공한다")
     void refreshAccessToken_success() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken); // 요청 리프레시 토큰 조회용 해시값
-        String newHashedRefreshToken = authService.hash(newRefreshToken); // 재발급된 리프레시 토큰 저장 검증용 해시값
+        String hashedRefreshToken = TokenUtils.hash(refreshToken); // 요청 리프레시 토큰 조회용 해시값
+        String newHashedRefreshToken = TokenUtils.hash(newRefreshToken); // 재발급된 리프레시 토큰 저장 검증용 해시값
         RefreshToken savedRefreshToken = new RefreshToken(
                 hashedRefreshToken,
                 savedUser,
@@ -197,6 +202,7 @@ class AuthServiceTest {
         verify(jwtProvider).createAccessToken(userId, email, nickname);
         verify(jwtProvider).createRefreshToken(userId);
         verify(refreshTokenRepository).delete(savedRefreshToken); // 기존 리프레시 토큰을 삭제하는지
+        verify(tokenBlacklistRepository).save(any()); // 기존 리프레시 토큰을 블랙리스트에 등록하는지
         verify(refreshTokenRepository).save(refreshTokenCaptor.capture()); // 새 리프레시 토큰 저장 객체를 캡처
 
         RefreshToken capturedRefreshToken = refreshTokenCaptor.getValue();
@@ -210,7 +216,7 @@ class AuthServiceTest {
     @DisplayName("요청한 리프레시 토큰이 DB에 존재하지 않으면 액세스 토큰 재발급에 실패한다")
     void refreshAccessToken_fail_refreshTokenNotFound() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         given(refreshTokenRepository.findByRefreshToken(hashedRefreshToken)).willReturn(Optional.empty()); // DB에 저장된 리프레시 토큰이 없다고 가정
 
         // When + Then
@@ -228,7 +234,7 @@ class AuthServiceTest {
     @DisplayName("요청한 리프레시 토큰이 만료되면 액세스 토큰 재발급에 실패한다")
     void refreshAccessToken_fail_expiredRefreshToken() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         RefreshToken savedRefreshToken = new RefreshToken(
                 hashedRefreshToken,
                 savedUser,
@@ -251,7 +257,7 @@ class AuthServiceTest {
     @DisplayName("요청한 유저와 DB에 저장된 토큰의 유저가 다르면 액세스 토큰 재발급에 실패한다")
     void refreshAccessToken_fail_userMismatch() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         RefreshToken savedRefreshToken = new RefreshToken(
                 hashedRefreshToken,
                 savedUser,
@@ -275,7 +281,7 @@ class AuthServiceTest {
     @DisplayName("요청한 유저가 삭제된 유저면 액세스 토큰 재발급에 실패한다")
     void refreshAccessToken_fail_deletedUser() {
         // Given
-        String hashedRefreshToken = authService.hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         savedUser.deleteUser(); // 삭제된 유저 상태로 변경
         RefreshToken savedRefreshToken = new RefreshToken(
                 hashedRefreshToken,

@@ -61,10 +61,6 @@ public class Comment {
         this.parent = parentComment;
     }
 
-    public void updateStatusBlind() {
-        this.status = StatusType.BLIND;
-    }
-
     public void updateContent(String newContent) {
         this.content = newContent;
         this.isEdited = true;

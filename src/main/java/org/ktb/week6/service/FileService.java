@@ -51,15 +51,9 @@ public class FileService {
             file.transferTo(path);
 
             String filePath = "/public/images/" + storeFileName;
-            String fileUrl = getFileUrl(filePath);
-            return Optional.of(fileRepository.save(new File(filePath, fileUrl, category)));
+            return Optional.of(fileRepository.save(new File(filePath, category)));
         } catch (IOException e) {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "file_upload_failed");
         }
-    }
-
-    // 파일 URL 변환 (파일 경로 기반)
-    public String getFileUrl(String path) {
-        return FileUtils.toFullUrl(path);
     }
 }

@@ -111,7 +111,6 @@ public class CommentService {
 
         // 삭제 상태가 아닌 경우에 삭제 처리
         comment.updateStatusDeleted();
-        post.decreaseCommentCount();
     }
 
     // 부모 댓글 검증 후 반환
@@ -127,6 +126,10 @@ public class CommentService {
 
         if (parent.getStatus() == StatusType.DELETED) {
             throw new NotFoundException("parent_comment_not_found");
+        }
+
+        if (parent.getParent() != null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "comment_depth_exceeded");
         }
 
         return Optional.of(parent);
@@ -155,7 +158,7 @@ public class CommentService {
         List<CommentResponseDto> childComments = childrenMap
                 .getOrDefault(comment.getId(), List.of())
                 .stream()
-                .map(child -> toCommentResponseDto(child, childrenMap))
+                .map(CommentResponseDto::new)
                 .toList();
 
         return new CommentResponseDto(comment, childComments);

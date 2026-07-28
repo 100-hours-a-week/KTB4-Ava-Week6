@@ -12,6 +12,8 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.Map;
 
@@ -93,6 +95,13 @@ public class JwtProvider {
     // 토큰에서 userId 추출
     public Long getUserId(String token) {
         return Long.valueOf(parse(token).getPayload().getSubject());
+    }
+
+    public LocalDateTime getExpiration(String token) {
+        Date expiration = parse(token).getPayload().getExpiration();
+        return expiration.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
     }
 
     // 액세스 토큰 만료 시간을 밀리초로 변환

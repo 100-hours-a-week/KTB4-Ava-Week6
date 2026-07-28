@@ -2,11 +2,7 @@ package org.ktb.week6.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ktb.week6.dto.CustomUserDetails;
-import org.ktb.week6.dto.UserRegisterRequestDto;
-import org.ktb.week6.dto.UserResponseDto;
-import org.ktb.week6.dto.UserUpdateInfoRequestDto;
-import org.ktb.week6.dto.UserUpdatePasswordRequestDto;
+import org.ktb.week6.dto.*;
 import org.ktb.week6.enums.ApiResultStatus;
 import org.ktb.week6.response.ApiResponse;
 import org.ktb.week6.service.UserService;
@@ -55,8 +51,8 @@ public class UserController {
 
     // 회원 탈퇴
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponseDto>> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        userService.deleteUser(userDetails.getId());
+    public ResponseEntity<ApiResponse<UserResponseDto>> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails, @Valid @RequestBody UserDeleteRequestDto request) {
+        userService.deleteUser(userDetails.getId(), request.getReason());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

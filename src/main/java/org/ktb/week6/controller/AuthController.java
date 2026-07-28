@@ -44,8 +44,8 @@ public class AuthController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@CookieValue(name = "refreshToken") String refreshToken, HttpServletResponse httpResponse) {
-        authService.logout(refreshToken);
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @CookieValue(name = "refreshToken") String refreshToken, HttpServletResponse httpResponse) {
+        authService.logout(refreshToken, resolveBearerToken(authorization));
         // 쿠키 삭제 명령
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
@@ -59,6 +59,14 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.of(ApiResultStatus.SUCCESS, "logout_success", null));
+    }
+
+    // 액세스토큰 추출
+    private String resolveBearerToken(String authorization) {
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            return authorization.substring(7);
+        }
+        return authorization;
     }
 
     // 액세스 토큰 재발급

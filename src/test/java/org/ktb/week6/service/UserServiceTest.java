@@ -15,6 +15,7 @@ import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.UserRepository;
+import org.ktb.week6.utils.FileUtils;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -54,6 +55,7 @@ class UserServiceTest {
     private String encodedPassword;
     private String nickname;
     private String newNickname;
+    private String reason;
     private File savedFile;
     private File newFile;
     private User savedUser;
@@ -70,6 +72,7 @@ class UserServiceTest {
         encodedPassword = "encodedPassword";
         nickname = "test";
         newNickname = "TestPassword12!";
+        reason = "이용 안 함";
 
         savedUser = new User(email, encodedPassword, nickname);
         ReflectionTestUtils.setField(savedUser, "id", userId);
@@ -77,12 +80,10 @@ class UserServiceTest {
 
         savedFile = new File(
                 "/public/images/test.png",
-                "http://localhost/public/images/test.png",
                 FileCategory.PROFILE_IMAGE
         );
         newFile = new File(
                 "/public/images/newTest.png",
-                "http://localhost/public/images/newTest.png",
                 FileCategory.PROFILE_IMAGE
         );
 
@@ -138,8 +139,7 @@ class UserServiceTest {
         // Then
         assertThat(responseDto.getEmail()).isEqualTo(email);
         assertThat(responseDto.getNickname()).isEqualTo(nickname);
-        assertThat(responseDto.getProfileImageUrl())
-                .isEqualTo(savedFile.getUrl()); // DTO의 profileImageUrl과 저장된 file의 getUrl이 동일한지
+        assertThat(responseDto.getProfileImageUrl()).isEqualTo(FileUtils.toFullUrl(savedFile.getPath())); // DTO의 profileImageUrl과 저장된 file의 getUrl이 동일한지
 
         verify(userRepository).existsByEmail(email);
         verify(userRepository).existsByNickname(nickname);
@@ -240,7 +240,7 @@ class UserServiceTest {
 
         // Then
         assertThat(responseDto.getNickname()).isEqualTo(newNickname);
-        assertThat(responseDto.getProfileImageUrl()).isEqualTo(newFile.getUrl());
+        assertThat(responseDto.getProfileImageUrl()).isEqualTo(FileUtils.toFullUrl(newFile.getPath()));
 
         verify(userRepository).existsByNickname(newNickname);
 
@@ -276,7 +276,7 @@ class UserServiceTest {
         UserResponseDto responseDto = userService.updateUserInfo(userId, requestDto, file);
 
         // Then
-        assertThat(responseDto.getProfileImageUrl()).isEqualTo(newFile.getUrl());
+        assertThat(responseDto.getProfileImageUrl()).isEqualTo(FileUtils.toFullUrl(newFile.getPath()));
         assertThat(responseDto.getNickname()).isEqualTo(nickname);
     }
 
@@ -389,21 +389,22 @@ class UserServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(savedUser));
 
         // When
-        userService.deleteUser(userId);
+        userService.deleteUser(userId, reason);
 
         // Then
         assertThat(savedUser.getStatus()).isEqualTo(StatusType.DELETED);
         assertThat(savedUser.getDeletedAt()).isNotNull();
+        assertThat(savedUser.getDeleteReason()).isEqualTo(reason);
     }
 
     @Test
     @DisplayName("존재하지 않는 USER ID로 회원 삭제에 실패한다")
-    void deleteUser_fail() {
+    void deleteUser_fail_notFoundUser() {
         // Given
         given(userRepository.findById(notFoundUserId)).willReturn(Optional.empty());
 
         // When + Then
-        assertThatThrownBy(() -> userService.deleteUser(notFoundUserId))
+        assertThatThrownBy(() -> userService.deleteUser(notFoundUserId, reason))
                 .isInstanceOf(NotFoundException.class);
 
     }
@@ -416,7 +417,7 @@ class UserServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(savedUser));
 
         // When + Then
-        assertThatThrownBy(() -> userService.deleteUser(userId))
+        assertThatThrownBy(() -> userService.deleteUser(userId, reason))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("user_not_found");
     }

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.jwt.JwtAuthenticationFilter;
 import org.ktb.week6.jwt.JwtProvider;
+import org.ktb.week6.repository.TokenBlacklistRepository;
 import org.ktb.week6.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
@@ -30,6 +31,7 @@ public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Value("${spring.h2.console.enabled:false}")
     private boolean h2ConsoleEnabled;
@@ -79,7 +81,7 @@ public class SecurityConfig {
                                     """);
                         })
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userDetailsService, tokenBlacklistRepository), UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));
 
         return http.build();

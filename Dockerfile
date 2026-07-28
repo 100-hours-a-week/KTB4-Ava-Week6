@@ -2,9 +2,9 @@
 
 ARG JAVA_VERSION=26
 
-FROM eclipse-temurin:${JAVA_VERSION}-jdk AS build
+FROM eclipse-temurin:${JAVA_VERSION}-jdk AS builder
 
-WORKDIR /workspace
+WORKDIR /app
 
 COPY gradlew .
 COPY gradle ./gradle
@@ -41,17 +41,17 @@ RUN groupadd --system --gid ${APP_GID} spring \
 
 WORKDIR /app
 
-COPY --from=build --chown=spring:spring \
-    /workspace/extracted/dependencies/ ./
+COPY --from=builder --chown=spring:spring \
+    /app/extracted/dependencies/ ./
 
-COPY --from=build --chown=spring:spring \
-    /workspace/extracted/spring-boot-loader/ ./
+COPY --from=builder --chown=spring:spring \
+    /app/extracted/spring-boot-loader/ ./
 
-COPY --from=build --chown=spring:spring \
-    /workspace/extracted/snapshot-dependencies/ ./
+COPY --from=builder --chown=spring:spring \
+    /app/extracted/snapshot-dependencies/ ./
 
-COPY --from=build --chown=spring:spring \
-    /workspace/extracted/application/ ./
+COPY --from=builder --chown=spring:spring \
+    /app/extracted/application/ ./
 
 USER spring:spring
 

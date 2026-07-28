@@ -7,7 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ktb.week6.repository.TokenBlacklistRepository;
 import org.ktb.week6.service.CustomUserDetailsService;
+import org.ktb.week6.utils.TokenUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
@@ -41,8 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 토큰 유효성 검사
         if (token != null) {
-            if (!jwtProvider.validateToken(token) || !jwtProvider.isAccessToken(token)) {
-                // 토큰이 만료됐거나 액세스 토큰이 아닌 경우
+            String hashedToken = TokenUtils.hash(token);
+            if (!jwtProvider.validateToken(token) || !jwtProvider.isAccessToken(token) || tokenBlacklistRepository.existsByToken(hashedToken)) {
+                // 1. 토큰이 만료
+                // 2. 액세스 토큰이 아님
+                // 3. 블랙리스트에 등록된 액세스 토큰
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().write("""

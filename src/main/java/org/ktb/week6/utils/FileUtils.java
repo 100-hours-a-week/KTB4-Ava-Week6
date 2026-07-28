@@ -1,7 +1,6 @@
 package org.ktb.week6.utils;
 
-import org.ktb.week6.exception.BusinessException;
-import org.springframework.http.HttpStatus;
+import org.ktb.week6.exception.InvalidFileException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -14,20 +13,20 @@ public class FileUtils {
             Set.of("jpg", "jpeg", "png", "gif", "webp");
 
     private FileUtils() {
-        throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_server_error");
+        throw new UnsupportedOperationException("utility_class");
     }
 
     // 허용하는 확장자인지 검증
     public static void validateImageFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "file_empty");
+            throw new InvalidFileException("file_empty");
         }
 
         String fileName = file.getOriginalFilename();
         String extension = getExtension(fileName);
 
         if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "invalid_extension");
+            throw new InvalidFileException("invalid_extension");
         }
     }
 
@@ -36,9 +35,12 @@ public class FileUtils {
         if (path == null || path.isBlank()) return null;
         if (path.startsWith("http://") || path.startsWith("https://")) return path;
 
-        String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-
-        return baseUrl + path;
+        try {
+            String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+            return baseUrl + path;
+        } catch (IllegalStateException e) {
+            return path;
+        }
     }
 
     // 저장용 파일명 생성
@@ -46,7 +48,7 @@ public class FileUtils {
         String extension = getExtension(fileName);
 
         if (extension == null || extension.isBlank()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "invalid_extension");
+            throw new InvalidFileException("invalid_extension");
         }
 
         return UUID.randomUUID().toString() + "." + extension;

@@ -108,9 +108,10 @@ public class UserService {
 
     // 회원 삭제 (soft delete)
     @Transactional
-    public void deleteUser(Long userId) {
+    public void deleteUser(Long userId, String reason) {
         User user = findActiveUser(userId);
 
+        user.insertDeletedReason(reason);
         user.deleteUser(); // soft delete 처리
         user.insertDeletedAt(LocalDateTime.now());
     }

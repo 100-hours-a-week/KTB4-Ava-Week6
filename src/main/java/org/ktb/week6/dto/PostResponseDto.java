@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ktb.week6.entity.Post;
 import org.ktb.week6.enums.StatusType;
+import org.ktb.week6.utils.FileUtils;
 
 import java.time.LocalDateTime;
 
@@ -11,12 +12,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class PostResponseDto {
     private Long id;
+    private Long userId;
     private String nickname;
     private String title;
     private String content;
     private String postImageUrl;
     private String userImageUrl;
     private Boolean isEdited;
+    private Boolean isLiked;
     private Long likeCount;
     private Long commentCount;
     private Long viewCount;
@@ -25,17 +28,24 @@ public class PostResponseDto {
 
     public PostResponseDto(Post post) {
         this.id = post.getId();
+        this.userId = post.getUser().getId();
         this.nickname = post.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : post.getUser().getNickname();
         this.title = post.getStatus() == StatusType.BLIND ? "숨김 처리된 게시글입니다." : post.getTitle();
         this.content = post.getStatus() == StatusType.BLIND ? "누적 신고 5회 이상으로 숨겨진 게시글입니다." : post.getContent();
-        this.postImageUrl = post.getFile() == null ? null : post.getFile().getUrl();
-        this.userImageUrl = post.getUser().getFile() == null ? null : post.getUser().getFile().getUrl();
+        this.postImageUrl = post.getFile() == null ? null : FileUtils.toFullUrl(post.getFile().getPath());
+        this.userImageUrl = post.getUser().getFile() == null ? null : FileUtils.toFullUrl(post.getUser().getFile().getPath());
         this.isEdited = post.getIsEdited();
+        this.isLiked = false;
         this.likeCount = post.getLikeCount();
         this.commentCount = post.getCommentCount();
         this.viewCount = post.getViewCount();
         this.createdAt = post.getCreatedAt();
         this.updatedAt = post.getUpdatedAt();
     }
-}
 
+    public PostResponseDto(Post post, Boolean isLiked) {
+        this(post);
+        this.isLiked = isLiked;
+    }
+
+}

@@ -3,23 +3,22 @@ package org.ktb.week6.service;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.dto.*;
 import org.ktb.week6.entity.RefreshToken;
+import org.ktb.week6.entity.TokenBlacklist;
 import org.ktb.week6.entity.User;
 import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.UnauthorizedException;
 import org.ktb.week6.jwt.JwtProvider;
 import org.ktb.week6.repository.RefreshTokenRepository;
+import org.ktb.week6.repository.TokenBlacklistRepository;
 import org.ktb.week6.repository.UserRepository;
 import org.ktb.week6.utils.FileUtils;
+import org.ktb.week6.utils.TokenUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.Base64;
 
 @Service
 @Validated
@@ -27,6 +26,7 @@ import java.util.Base64;
 public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
@@ -49,7 +49,7 @@ public class AuthService {
 
         String refreshToken = jwtProvider.createRefreshToken(user.getId());
 
-        String hashedRefreshToken = hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
 
         refreshTokenRepository.deleteByUserId(user.getId());
         refreshTokenRepository.save(
@@ -73,14 +73,13 @@ public class AuthService {
     // 액세스 토큰 재발급
     @Transactional
     public TokenResultDto refreshAccessToken(String refreshToken) {
-        String hashedRefreshToken = hash(refreshToken);
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         RefreshToken savedRefreshToken = refreshTokenRepository.findByRefreshToken(hashedRefreshToken)
                 .orElseThrow(() -> new UnauthorizedException("unauthorized"));
 
         // 리프레시 토큰이 만료된 경우 예외
         if (savedRefreshToken.isExpired()) {
             refreshTokenRepository.delete(savedRefreshToken);
-            // TODO: 기존 리프레시 토큰 블랙 리스트에 등록
             throw new UnauthorizedException("token_expired");
         }
 
@@ -94,16 +93,16 @@ public class AuthService {
         String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getNickname());
 
         String newRefreshToken = jwtProvider.createRefreshToken(user.getId());
-        String newHashedRefreshToken = hash(newRefreshToken);
+        String newHashedRefreshToken = TokenUtils.hash(newRefreshToken);
 
         refreshTokenRepository.delete(savedRefreshToken);
-        // TODO: 기존 리프레시 토큰 블랙리스트 등록
         refreshTokenRepository.save(
                 new RefreshToken(
                         newHashedRefreshToken,
                         user,
                         LocalDateTime.now().plusDays(14)
                 ));
+        tokenBlacklistRepository.save(new TokenBlacklist(hashedRefreshToken, savedRefreshToken.getUser(), savedRefreshToken.getExpiresAt()));
 
         return new TokenResultDto(
                 new TokenInfoDto(newAccessToken, jwtProvider.getAccessTokenValidityInMilliseconds()), newRefreshToken
@@ -111,18 +110,23 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String refreshToken) {
-        String hashedRefreshToken = hash(refreshToken);
+    public void logout(String refreshToken, String accessToken) {
+        String hashedRefreshToken = TokenUtils.hash(refreshToken);
         refreshTokenRepository.deleteByRefreshToken(hashedRefreshToken);
-    }
 
-    public String hash(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA_256_ALGORITHM_NOT_AVAILABLE", e);
+        if (jwtProvider.validateToken(accessToken) && jwtProvider.isAccessToken(accessToken)) {
+            Long userId = jwtProvider.getUserId(accessToken);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UnauthorizedException("unauthorized"));
+
+            tokenBlacklistRepository.save(
+                    new TokenBlacklist(
+                            TokenUtils.hash(accessToken),
+                            user,
+                            jwtProvider.getExpiration(accessToken)
+                    )
+            );
         }
     }
+
 }

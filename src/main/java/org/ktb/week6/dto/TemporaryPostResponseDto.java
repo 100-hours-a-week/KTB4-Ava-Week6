@@ -3,6 +3,7 @@ package org.ktb.week6.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ktb.week6.entity.TemporaryPost;
+import org.ktb.week6.utils.FileUtils;
 
 import java.time.LocalDateTime;
 
@@ -20,7 +21,7 @@ public class TemporaryPostResponseDto {
         this.id = post.getId();
         this.title = post.getTitle();
         this.content = post.getContent();
-        this.imageUrl = post.getFile() == null ? null : post.getFile().getUrl();
+        this.imageUrl = post.getFile() == null ? null : FileUtils.toFullUrl(post.getFile().getPath());
         this.createdAt = post.getCreatedAt();
         this.updatedAt = post.getUpdatedAt();
     }
