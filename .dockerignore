@@ -1,0 +1,47 @@
+# Git
+.git
+.github
+.gitattributes
+.gitignore
+
+# Gradle
+.gradle
+build
+bin
+out
+
+# IDE
+.idea
+.vscode
+*.iml
+*.iws
+*.ipr
+
+# Logs
+*.log
+logs
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Runtime data
+uploads
+*.mv.db
+*.trace.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker Compose
+compose.yaml
+compose.yml
+docker-compose.yaml
+docker-compose.yml
+
+# Documentation
+HELP.md
+README.md
+docs

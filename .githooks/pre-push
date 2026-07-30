@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+echo "Running Gradle checks..."
+./gradlew check --no-daemon
+
+echo "Checking Docker availability..."
+docker info > /dev/null
+
+echo "Building the production Docker image..."
+docker build -t week6-backend:pre-push .
+
+echo "Pre-push checks passed."
