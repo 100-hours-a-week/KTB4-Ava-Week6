@@ -27,7 +27,6 @@ out/
 !**/src/test/**/out/
 
 ### NetBeans ###
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -37,7 +36,22 @@ out/
 ### VS Code ###
 .vscode/
 
+### Environment ###
 .env
+.env.*
+!.env.example
+
+### Logs ###
+*.log
+logs/
+
+### Local databases ###
+*.mv.db
+*.trace.db
+
+### OS ###
+.DS_Store
+Thumbs.db
 
 ### 클라이언트 이미지 업로드 폴더 ###
 /uploads/images/

@@ -1,0 +1,224 @@
+name: Backend CD
+
+on:
+  workflow_run:
+    workflows: [Backend CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish image
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+
+    steps:
+      - name: Checkout verified commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set Docker Hub image name
+        id: image
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "$DOCKERHUB_USERNAME" || -z "$DOCKERHUB_REPOSITORY" ]]; then
+            echo "DOCKERHUB_USERNAME and DOCKERHUB_REPOSITORY must be configured."
+            exit 1
+          fi
+          echo "name=${DOCKERHUB_USERNAME,,}/${DOCKERHUB_REPOSITORY,,}" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.event.workflow_run.head_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy production
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      DOCKERHUB_READ_TOKEN: ${{ secrets.DOCKERHUB_READ_TOKEN }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      IMAGE: ${{ needs.publish.outputs.image }}:${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Login to Docker Hub on EC2
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          port="${EC2_SSH_PORT:-22}"
+          printf '%s' "$DOCKERHUB_READ_TOKEN" |
+            ssh -p "$port" "$EC2_USER@$EC2_HOST" \
+              "docker login --username '$DOCKERHUB_USERNAME' --password-stdin"
+
+      - name: Deploy immutable image to EC2
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          port="${EC2_SSH_PORT:-22}"
+
+          ssh -p "$port" "$EC2_USER@$EC2_HOST" \
+            "IMAGE='$IMAGE' JWT_SECRET='$JWT_SECRET' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+
+          NAME=week6-backend
+          ROLLBACK_NAME=week6-backend-rollback
+          APP_HOME="$HOME/week6-backend"
+          DATA_DIR="$APP_HOME/shared/data"
+          UPLOAD_DIR="$APP_HOME/shared/uploads"
+          BACKUP_DIR="$APP_HOME/backups"
+
+          mkdir -p "$UPLOAD_DIR" "$DATA_DIR" "$BACKUP_DIR"
+          docker run --rm \
+            -v "$UPLOAD_DIR:/data/uploads" \
+            -v "$DATA_DIR:/data/h2" \
+            busybox chown -R 10001:10001 /data/uploads /data/h2
+
+          docker pull "$IMAGE"
+
+          # Remove a stale rollback container only after stopping it gracefully.
+          if docker container inspect "$ROLLBACK_NAME" >/dev/null 2>&1; then
+            docker stop --time 30 "$ROLLBACK_NAME" >/dev/null 2>&1 || true
+            docker rm "$ROLLBACK_NAME"
+          fi
+
+          had_previous=false
+          backup=""
+          if docker container inspect "$NAME" >/dev/null 2>&1; then
+            had_previous=true
+
+            # H2 embedded mode requires exclusive access to its database file.
+            docker stop --time 30 "$NAME"
+
+            backup="$BACKUP_DIR/h2-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+            if ! tar -C "$APP_HOME/shared" -czf "$backup" data; then
+              echo "Failed to back up H2; restarting the previous container."
+              rm -f "$backup"
+              docker start "$NAME"
+              exit 1
+            fi
+            echo "Created H2 backup: $backup"
+
+            # Keep the stopped container so it can be restarted on failure.
+            if ! docker rename "$NAME" "$ROLLBACK_NAME"; then
+              echo "Failed to prepare rollback container; restarting the previous container."
+              docker start "$NAME"
+              exit 1
+            fi
+          fi
+
+          started=false
+          if docker run -d \
+              --name "$NAME" \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e JWT_SECRET="$JWT_SECRET" \
+              -v "$DATA_DIR:/data/h2" \
+              -v "$UPLOAD_DIR:/data/uploads" \
+              "$IMAGE"; then
+            started=true
+          fi
+
+          healthy=false
+          if [ "$started" = true ]; then
+            for attempt in {1..30}; do
+              if [ "$(docker inspect --format='{{.State.Running}}' "$NAME")" != "true" ]; then
+                break
+              fi
+              if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+                healthy=true
+                break
+              fi
+              sleep 2
+            done
+          fi
+
+          if [ "$healthy" = true ]; then
+            if [ "$had_previous" = true ]; then
+              docker rm "$ROLLBACK_NAME" || true
+            fi
+            docker image prune -f || true
+            exit 0
+          fi
+
+          echo "New image failed health check."
+          docker logs --tail 100 "$NAME" 2>/dev/null || true
+          docker stop --time 30 "$NAME" >/dev/null 2>&1 || true
+          docker rm "$NAME" >/dev/null 2>&1 || true
+
+          if [ "$had_previous" = true ]; then
+            echo "Restoring previous container."
+            docker rename "$ROLLBACK_NAME" "$NAME"
+            docker start "$NAME"
+
+            restored=false
+            for attempt in {1..30}; do
+              if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+                restored=true
+                break
+              fi
+              sleep 2
+            done
+
+            if [ "$restored" = true ]; then
+              echo "Previous version restored successfully."
+            else
+              echo "Previous version also failed to start."
+              docker logs --tail 100 "$NAME" 2>/dev/null || true
+            fi
+          fi
+
+          exit 1
+          REMOTE

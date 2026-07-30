@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+echo "Checking staged changes..."
+git diff --cached --check
+
+echo "Checking workflow YAML..."
+for workflow in .github/workflows/*.yml; do
+  ruby -e '
+    require "yaml"
+    YAML.parse_file(ARGV.fetch(0))
+  ' "$workflow"
+done
+
+echo "Checking workflow Bash syntax..."
+for workflow in .github/workflows/*.yml; do
+  ruby -ryaml -e '
+    workflow = YAML.load_file(ARGV.fetch(0))
+    workflow.fetch("jobs", {}).each_value do |job|
+      job.fetch("steps", []).each do |step|
+        next unless step["run"]
+
+        shell = step["shell"]
+        puts step["run"] if shell.nil? || shell.start_with?("bash")
+      end
+    end
+  ' "$workflow" | bash -n
+done
+
+echo "Pre-commit checks passed."
