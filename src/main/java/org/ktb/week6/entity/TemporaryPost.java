@@ -3,6 +3,8 @@ package org.ktb.week6.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import org.ktb.week6.dto.TemporaryPostRequestDto;
+import org.ktb.week6.enums.PostType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -36,6 +38,13 @@ public class TemporaryPost {
     @JoinColumn(name = "file_id")
     private File file;
 
+    @Enumerated(EnumType.STRING)
+    private PostType type;
+
+    private int capacity;
+
+    private LocalDateTime deadline;
+
     @CreatedDate
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -44,13 +53,17 @@ public class TemporaryPost {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    protected TemporaryPost() {}
+    protected TemporaryPost() {
+    }
 
-    public TemporaryPost(String title, String content, User user, File file) {
-        this.title = title;
-        this.content = content;
+    public TemporaryPost(TemporaryPostRequestDto request, User user, File file) {
+        this.title = request.getTitle();
+        this.content = request.getContent();
         this.user = user;
         this.file = file;
+        this.type = request.getType();
+        this.capacity = request.getCapacity();
+        this.deadline = request.getDeadline();
     }
 
     public void updateTitle(@Size(max = 26) String title) {
@@ -63,5 +76,17 @@ public class TemporaryPost {
 
     public void updateFile(File file) {
         this.file = file;
+    }
+
+    public void updateType(PostType type) {
+        this.type = type;
+    }
+
+    public void updateCapacity(int capacity) {
+        this.capacity = capacity;
+    }
+
+    public void updateDeadline(LocalDateTime deadline) {
+        this.deadline = deadline;
     }
 }

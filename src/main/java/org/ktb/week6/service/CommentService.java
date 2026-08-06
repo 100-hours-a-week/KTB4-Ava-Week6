@@ -3,18 +3,15 @@ package org.ktb.week6.service;
 import lombok.RequiredArgsConstructor;
 import org.ktb.week6.dto.CommentRequestDto;
 import org.ktb.week6.dto.CommentResponseDto;
-import org.ktb.week6.entity.Comment;
-import org.ktb.week6.entity.Post;
-import org.ktb.week6.entity.User;
+import org.ktb.week6.entity.*;
 import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
-import org.ktb.week6.repository.CommentRepository;
-import org.ktb.week6.repository.PostRepository;
-import org.ktb.week6.repository.UserRepository;
+import org.ktb.week6.repository.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Map;
@@ -22,22 +19,30 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 public class CommentService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final EventPostRepository eventPostRepository;
+    private final EventApplicationRepository eventApplicationRepository;
 
-    // 댓글 작성
+    // 댓글 작성 (공통)
     @Transactional
     public CommentResponseDto createComment(CommentRequestDto request, Long postId, Long userId) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
-        if (post.getStatus().equals(StatusType.DELETED)) {
-            throw new NotFoundException("post_not_found");
-        }
-
-        Optional<Comment> parent = validateAndGetParentComment(request.getParentId(), postId);
+        Post post = postRepository.findByStatusNotAndId(StatusType.DELETED, postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+
+        if (post.getEventPost() != null) {
+            return createEventComment(request, post, user);
+        } else {
+            return createGeneralComment(request, post, user);
+        }
+    }
+
+    private CommentResponseDto createGeneralComment(CommentRequestDto request, Post post, User user) {
+        Optional<Comment> parent = validateAndGetParentComment(request.getParentId(), post.getId());
 
         Comment comment = new Comment(
                 request.getContent(),
@@ -51,6 +56,50 @@ public class CommentService {
         post.increaseCommentCount();
 
         return new CommentResponseDto(savedComment);
+    }
+
+    private CommentResponseDto createEventComment(CommentRequestDto request, Post post, User user) {
+        EventPost eventPost = eventPostRepository.findByPostIdForUpdate(post.getId()).orElseThrow(() -> new NotFoundException("event_post_not_found"));
+
+        if (post.getUser().getId().equals(user.getId())) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
+                    "application_self_forbidden"
+            );
+        }
+
+        if (eventApplicationRepository
+                .existsByEventPostIdAndUserId(eventPost.getId(), user.getId())) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "application_already_exists"
+            );
+        }
+
+        if (eventPost.isExpired()) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "application_expired"
+            );
+        }
+
+        if (eventPost.isFull()) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "application_count_full"
+            );
+        }
+
+        Comment newComment = new Comment(request.getContent(), post, user, null);
+        EventApplication newEventApplication = new EventApplication(eventPost, user, newComment);
+
+        commentRepository.save(newComment);
+        eventApplicationRepository.save(newEventApplication);
+
+        eventPost.increaseApplicationCount();
+        post.increaseCommentCount();
+
+        return new CommentResponseDto(newComment);
     }
 
     // 댓글 조회
@@ -85,6 +134,11 @@ public class CommentService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "comment_update_forbidden");
         }
 
+        // 이벤트 참여 댓글은 수정 불가
+        if (eventApplicationRepository.existsByCommentId(commentId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "event_comment_update_forbidden");
+        }
+
         comment.updateContent(request.getContent());
 
         return new CommentResponseDto(comment);
@@ -107,6 +161,11 @@ public class CommentService {
         // 이미 삭제된 댓글일 때
         if (comment.getStatus() == StatusType.DELETED) {
             throw new BusinessException(HttpStatus.CONFLICT, "comment_already_deleted");
+        }
+
+        // 이벤트 참여 댓글은 삭제 불가
+        if (eventApplicationRepository.existsByCommentId(commentId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "event_comment_delete_forbidden");
         }
 
         // 삭제 상태가 아닌 경우에 삭제 처리

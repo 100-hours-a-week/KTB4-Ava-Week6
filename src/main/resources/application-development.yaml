@@ -3,13 +3,18 @@ spring:
     console:
       enabled: false
 
+  datasource:
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    url: jdbc:p6spy:h2:file:~/h2db/week6db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+
 logging:
   level:
     org:
       springframework:
         jdbc:
           core:
-            StatementCreatorUtils: INFO
-            JdbcTemplate: INFO
+            StatementCreatorUtils: info
+            JdbcTemplate: info
       hibernate:
-        SQL: INFO
+        SQL: info
+    p6spy: debug

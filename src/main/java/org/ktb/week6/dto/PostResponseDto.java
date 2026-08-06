@@ -2,7 +2,10 @@ package org.ktb.week6.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.ktb.week6.entity.EventPost;
 import org.ktb.week6.entity.Post;
+import org.ktb.week6.enums.EventPostStatusType;
+import org.ktb.week6.enums.PostType;
 import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.utils.FileUtils;
 
@@ -20,13 +23,18 @@ public class PostResponseDto {
     private String userImageUrl;
     private Boolean isEdited;
     private Boolean isLiked;
+    private PostType postType;
+    private EventPostStatusType eventPostStatusType;
+    private int capacity;
+    private int applicationCount;
+    private LocalDateTime deadline;
     private Long likeCount;
     private Long commentCount;
     private Long viewCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public PostResponseDto(Post post) {
+    public PostResponseDto(Post post, EventPost eventPost, Boolean isLiked) {
         this.id = post.getId();
         this.userId = post.getUser().getId();
         this.nickname = post.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : post.getUser().getNickname();
@@ -35,7 +43,14 @@ public class PostResponseDto {
         this.postImageUrl = post.getFile() == null ? null : FileUtils.toFullUrl(post.getFile().getPath());
         this.userImageUrl = post.getUser().getFile() == null ? null : FileUtils.toFullUrl(post.getUser().getFile().getPath());
         this.isEdited = post.getIsEdited();
-        this.isLiked = false;
+        this.isLiked = isLiked;
+        this.postType = eventPost == null ? PostType.GENERAL : PostType.MEETING;
+        if (eventPost != null) {
+            this.capacity = eventPost.getCapacity();
+            this.applicationCount = eventPost.getApplicationCount();
+            this.deadline = eventPost.getDeadline();
+            this.eventPostStatusType = resolveEventPostStatus(eventPost);
+        }
         this.likeCount = post.getLikeCount();
         this.commentCount = post.getCommentCount();
         this.viewCount = post.getViewCount();
@@ -43,9 +58,10 @@ public class PostResponseDto {
         this.updatedAt = post.getUpdatedAt();
     }
 
-    public PostResponseDto(Post post, Boolean isLiked) {
-        this(post);
-        this.isLiked = isLiked;
+    private EventPostStatusType resolveEventPostStatus(EventPost eventPost) {
+        if (eventPost.isExpired()) return eventPostStatusType.EXPIRED;
+        if (eventPost.isFull()) return eventPostStatusType.FULL;
+        return eventPostStatusType.OPEN;
     }
 
 }

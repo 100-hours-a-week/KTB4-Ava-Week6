@@ -58,6 +58,9 @@ public class Post {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "post")
     private List<Comment> comment = new ArrayList<>();
 
+    @OneToOne(mappedBy = "post")
+    private EventPost eventPost;
+
     @CreatedDate
     @Column(nullable = false)
     private LocalDateTime createdAt;
