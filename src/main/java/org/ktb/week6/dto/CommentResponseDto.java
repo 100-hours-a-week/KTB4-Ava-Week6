@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ktb.week6.entity.Comment;
 import org.ktb.week6.enums.StatusType;
+import org.ktb.week6.utils.FileUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,6 +18,7 @@ public class CommentResponseDto {
     private Long userId;
     private String content;
     private String nickname;
+    private String userImageUrl;
     private Boolean isDeleted;
     private Boolean isEdited;
     private LocalDateTime createdAt;
@@ -35,6 +37,7 @@ public class CommentResponseDto {
         this.isDeleted = comment.getStatus() == StatusType.DELETED;
         this.isEdited = comment.getIsEdited();
         this.nickname = comment.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : comment.getUser().getNickname();
+        this.userImageUrl = comment.getUser().getFile() != null ? FileUtils.toFullUrl(comment.getUser().getFile().getPath()) : null;
         this.createdAt = comment.getCreatedAt();
         this.updatedAt = comment.getUpdatedAt();
     }
@@ -50,6 +53,7 @@ public class CommentResponseDto {
         this.isDeleted = comment.getStatus() == StatusType.DELETED;
         this.isEdited = comment.getIsEdited();
         this.nickname = comment.getUser().getStatus() == StatusType.DELETED ? "탈퇴한 사용자" : comment.getUser().getNickname();
+        this.userImageUrl = comment.getUser().getFile() != null ? FileUtils.toFullUrl(comment.getUser().getFile().getPath()) : null;
         this.createdAt = comment.getCreatedAt();
         this.updatedAt = comment.getUpdatedAt();
         this.comments = comments;
