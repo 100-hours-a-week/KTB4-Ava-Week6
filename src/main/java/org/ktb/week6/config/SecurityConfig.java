@@ -6,8 +6,6 @@ import org.ktb.week6.jwt.JwtAuthenticationFilter;
 import org.ktb.week6.jwt.JwtProvider;
 import org.ktb.week6.repository.TokenBlacklistRepository;
 import org.ktb.week6.service.CustomUserDetailsService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -33,9 +31,6 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final TokenBlacklistRepository tokenBlacklistRepository;
 
-    @Value("${spring.h2.console.enabled:false}")
-    private boolean h2ConsoleEnabled;
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -58,10 +53,6 @@ public class SecurityConfig {
                             "/auth/refresh",
                             "/public/images/**"
                     ).permitAll();
-
-                    if (h2ConsoleEnabled) {
-                        auth.requestMatchers(PathRequest.toH2Console()).permitAll();
-                    }
 
                     auth.anyRequest().authenticated();
                 })

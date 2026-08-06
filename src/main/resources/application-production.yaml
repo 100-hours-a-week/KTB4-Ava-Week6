@@ -1,15 +1,13 @@
 spring:
   datasource:
-    url: jdbc:h2:file:/home/ubuntu/week6-data/week6db
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:week6}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
-
-  h2:
-    console:
-      enabled: false
 
 logging:
   level:

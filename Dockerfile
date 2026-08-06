@@ -36,7 +36,7 @@ RUN groupadd --system --gid ${APP_GID} spring \
         --no-log-init \
         --no-create-home \
         spring \
-    && mkdir -p /data/h2 /data/uploads \
+    && mkdir -p /data/uploads \
     && chown -R spring:spring /data
 
 WORKDIR /app
@@ -62,7 +62,7 @@ ENV JAVA_TOOL_OPTIONS="\
 -XX:+ExitOnOutOfMemoryError"
 
 ENV SPRING_PROFILES_ACTIVE=production
-ENV SPRING_DATASOURCE_URL=jdbc:h2:file:/data/h2/week6db
 ENV FILE_UPLOAD_DIR=/data/uploads
+ENV TZ=Asia/Seoul
 
 ENTRYPOINT ["java", "-cp", "lib/*:app.jar", "org.ktb.week6.Week6Application"]
