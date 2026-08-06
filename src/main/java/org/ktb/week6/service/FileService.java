@@ -56,4 +56,14 @@ public class FileService {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "file_upload_failed");
         }
     }
+
+    public void deleteFile(File file) {
+        try {
+            Path root = Path.of(fileProperties.uploadDir()).toAbsolutePath().normalize();
+            String storeFileName = file.getPath().substring(file.getPath().lastIndexOf('/') + 1);
+            Files.deleteIfExists(root.resolve(storeFileName).normalize());
+        } catch (IOException ignored) {
+        }
+        fileRepository.delete(file);
+    }
 }

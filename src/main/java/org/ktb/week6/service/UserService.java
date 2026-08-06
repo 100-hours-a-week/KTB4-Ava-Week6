@@ -8,8 +8,8 @@ import org.ktb.week6.dto.UserUpdateInfoRequestDto;
 import org.ktb.week6.dto.UserUpdatePasswordRequestDto;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.entity.User;
-import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.enums.FileCategory;
+import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.UserRepository;
@@ -48,9 +48,13 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         Optional<File> newFile = fileService.storeFile(file, FileCategory.PROFILE_IMAGE);
-        savedUser.updateFile(newFile.orElse(null));
-
-        return new UserResponseDto(savedUser);
+        try {
+            savedUser.updateFile(newFile.orElse(null));
+            return new UserResponseDto(savedUser);
+        } catch (RuntimeException e) {
+            newFile.ifPresent(fileService::deleteFile);
+            throw e;
+        }
     }
 
     // 회원 정보 조회
@@ -80,15 +84,20 @@ public class UserService {
             user.updateNickname(request.getNickname());
         }
 
-        if (hasFile) {
-            Optional<File> newFile = fileService.storeFile(
-                    file,
-                    FileCategory.PROFILE_IMAGE
-            );
-            user.updateFile(newFile.get());
-        }
+        Optional<File> newFile = hasFile
+                ? fileService.storeFile(file, FileCategory.PROFILE_IMAGE)
+                : Optional.empty();
 
-        return new UserResponseDto(user);
+        try {
+            if (hasFile) {
+                user.updateFile(newFile.orElse(null));
+            }
+
+            return new UserResponseDto(user);
+        } catch (RuntimeException e) {
+            newFile.ifPresent(fileService::deleteFile);
+            throw e;
+        }
     }
 
     // 비밀번호 수정

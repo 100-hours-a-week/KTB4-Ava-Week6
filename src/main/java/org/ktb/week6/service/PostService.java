@@ -8,10 +8,7 @@ import org.ktb.week6.dto.PostRequestDto;
 import org.ktb.week6.dto.PostResponseDto;
 import org.ktb.week6.dto.PostUpdateRequestDto;
 import org.ktb.week6.entity.*;
-import org.ktb.week6.enums.ActionType;
-import org.ktb.week6.enums.FileCategory;
-import org.ktb.week6.enums.ReportReason;
-import org.ktb.week6.enums.StatusType;
+import org.ktb.week6.enums.*;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.*;
@@ -19,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -26,17 +24,21 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 public class PostService {
     private static final int POST_PAGE_SIZE = 10;
 
     private final PostRepository postRepository;
+    private final EventPostRepository eventPostRepository;
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
     private final ReportRepository reportRepository;
-    private final TemporaryPostService temporaryPostService;
     private final PostHistoryRepository postHistoryRepository;
     private final PostViewLogsRepository postViewLogsRepository;
+
+    private final EventPostService eventPostService;
+    private final TemporaryPostService temporaryPostService;
 
     private final FileService fileService;
 
@@ -57,7 +59,7 @@ public class PostService {
                 : null;
 
         List<PostResponseDto> posts = pagePosts.stream()
-                .map(this::toPostResponseDto)
+                .map(post -> toPostResponseDto(post, post.getEventPost()))
                 .toList();
 
         return new PostListResponseDto(
@@ -73,30 +75,43 @@ public class PostService {
                 new NotFoundException("user_not_found"));
 
         Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
+        try {
 
-        Post post = new Post(request.getTitle(), request.getContent(), user, file.orElse(null));
+            Post post = new Post(request.getTitle(), request.getContent(), user, file.orElse(null));
 
-        postRepository.save(post);
+            postRepository.save(post);
 
-        // 임시저장 이력도 함께 삭제
-        if (request.getTemporaryPostId() != null) {
-            temporaryPostService.deleteTemporaryPost(request.getTemporaryPostId(), userId);
+            // 모임글이라면 모임 내용 저장
+            if (request.getType().equals(PostType.MEETING)) {
+                eventPostService.createEventPost(post, request.getCapacity(), request.getDeadline());
+            }
+
+            // 임시저장 이력도 함께 삭제
+            if (request.getTemporaryPostId() != null) {
+                temporaryPostService.deleteTemporaryPost(request.getTemporaryPostId(), userId);
+            }
+
+            Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
+
+            // 이력 저장
+            PostHistory postHistory = new PostHistory(ActionType.INSERT, post.getTitle(), post.getContent(), nextVersion, post, user, file.orElse(null));
+
+            postHistoryRepository.save(postHistory);
+
+            EventPost eventPost = eventPostRepository.findByPostId(post.getId()).orElse(null);
+            boolean isLiked = likeRepository.existsByPostIdAndUserId(post.getId(), userId);
+
+            return new PostResponseDto(post, eventPost, isLiked);
+        } catch (RuntimeException e) {
+            file.ifPresent(fileService::deleteFile);
+            throw e;
         }
-
-        Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
-
-        // 이력 저장
-        PostHistory postHistory = new PostHistory(ActionType.INSERT, post.getTitle(), post.getContent(), nextVersion, post, user, file.orElse(null));
-
-        postHistoryRepository.save(postHistory);
-
-        return new PostResponseDto(post);
     }
 
     // 게시글 상세 조회
     @Transactional
     public PostResponseDto getPost(Long postId, Long userId) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        Post post = postRepository.findByIdWithEventPost(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
 
         if (post.getStatus().equals(StatusType.DELETED)) {
             throw new NotFoundException("post_not_found");
@@ -122,14 +137,18 @@ public class PostService {
         }
 
         boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
-        return new PostResponseDto(post, isLiked);
+        return new PostResponseDto(post, post.getEventPost(), isLiked);
     }
 
     // 게시글 수정
     @Transactional
     public PostResponseDto updatePost(@Positive Long userId, @Positive Long postId, @Valid PostUpdateRequestDto request, MultipartFile image) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        Post post = postRepository.findByIdWithEventPost(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
+
+        if (post.getEventPost() != null) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "meeting_post_update_forbidden");
+        }
 
         validatePostIsNotDeleted(post);
 
@@ -146,28 +165,36 @@ public class PostService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "title_content_required");
         }
 
-        if (hasTitle) {
-            post.updateTitle(request.getTitle());
+        Optional<File> file = hasImage
+                ? fileService.storeFile(image, FileCategory.POST_ATTACHMENT)
+                : Optional.empty();
+
+        try {
+            if (hasTitle) {
+                post.updateTitle(request.getTitle());
+            }
+
+            if (hasContent) {
+                post.updateContent(request.getContent());
+            }
+
+            if (hasImage) {
+                post.updateFile(file.orElse(null));
+            }
+
+            Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
+
+            // 이력 저장
+            PostHistory postHistory = new PostHistory(ActionType.UPDATE, post.getTitle(), post.getContent(), nextVersion, post, user, post.getFile());
+
+            postHistoryRepository.save(postHistory);
+
+            boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
+            return new PostResponseDto(post, post.getEventPost(), isLiked);
+        } catch (RuntimeException e) {
+            file.ifPresent(fileService::deleteFile);
+            throw e;
         }
-
-        if (hasContent) {
-            post.updateContent(request.getContent());
-        }
-
-        if (hasImage) {
-            Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
-            post.updateFile(file.orElse(null));
-        }
-
-        Long nextVersion = postHistoryRepository.findMaxVersionByPostId(post.getId()) + 1;
-
-        // 이력 저장
-        PostHistory postHistory = new PostHistory(ActionType.UPDATE, post.getTitle(), post.getContent(), nextVersion, post, user, post.getFile());
-
-        postHistoryRepository.save(postHistory);
-
-        boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
-        return new PostResponseDto(post, isLiked);
     }
 
     // 게시글 삭제
@@ -194,7 +221,7 @@ public class PostService {
     // 게시글 좋아요
     @Transactional
     public PostResponseDto likePost(@Positive Long userId, @Positive Long postId) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        Post post = postRepository.findByIdWithEventPost(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
 
         validatePostIsNotDeleted(post);
 
@@ -213,13 +240,14 @@ public class PostService {
             isLiked = true;
         }
 
-        return new PostResponseDto(post, isLiked);
+        return new PostResponseDto(post, post.getEventPost(), isLiked);
     }
 
     // 게시글 신고
     @Transactional
     public PostResponseDto reportPost(@Positive Long userId, @Positive Long postId, ReportReason reason) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+        Post post = postRepository.findByIdWithEventPost(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
+
         validatePostIsNotDeleted(post);
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
@@ -236,7 +264,9 @@ public class PostService {
             post.updateStatus(StatusType.BLIND);
         }
 
-        return new PostResponseDto(post);
+        boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
+
+        return new PostResponseDto(post, post.getEventPost(), isLiked);
     }
 
     private void validatePostIsNotDeleted(Post post) {
@@ -245,7 +275,7 @@ public class PostService {
         }
     }
 
-    private PostResponseDto toPostResponseDto(Post post) {
-        return new PostResponseDto(post);
+    private PostResponseDto toPostResponseDto(Post post, EventPost eventPost) {
+        return new PostResponseDto(post, eventPost, false);
     }
 }

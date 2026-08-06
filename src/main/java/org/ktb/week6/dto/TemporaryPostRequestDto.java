@@ -5,13 +5,23 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.ktb.week6.enums.PostType;
 
-@Getter @Setter
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class TemporaryPostRequestDto {
-    @Size(max = 26)
+    @Size(max = 26, message = "title_too_long")
     private String title;
     private String content;
+
+    private PostType type;
+
+    private int capacity;
+
+    private LocalDateTime deadline;
 
 }

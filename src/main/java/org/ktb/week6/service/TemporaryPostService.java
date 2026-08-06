@@ -16,11 +16,13 @@ import org.ktb.week6.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 public class TemporaryPostService {
 
@@ -42,24 +44,46 @@ public class TemporaryPostService {
         User user = userRepository.findById(userId).orElseThrow(() ->
                 new NotFoundException("user_not_found"));
 
-        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
+        boolean hasImage = image != null && !image.isEmpty();
+
 
         TemporaryPost savedPost = temporaryPostRepository.findByUserId(userId)
                 .map(post -> {
                     post.updateTitle(request.getTitle());
                     post.updateContent(request.getContent());
-                    post.updateFile(file.orElse(null));
+                    post.updateType(request.getType());
+                    post.updateCapacity(request.getCapacity());
+                    post.updateDeadline(request.getDeadline());
+
+                    if (hasImage) {
+                        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
+                        try {
+                            post.updateFile(file.orElse(null));
+                        } catch (RuntimeException e) {
+                            file.ifPresent(fileService::deleteFile);
+                            throw e;
+                        }
+                    }
+
                     return post;
                 })
                 .orElseGet(() -> {
-                    TemporaryPost newPost = new TemporaryPost(
-                            request.getTitle(),
-                            request.getContent(),
-                            user,
-                            file.orElse(null)
-                    );
+                    File file = hasImage ? fileService.storeFile(image, FileCategory.POST_ATTACHMENT).orElse(null) : null;
 
-                    return temporaryPostRepository.save(newPost);
+                    try {
+                        TemporaryPost newPost = new TemporaryPost(
+                                request,
+                                user,
+                                file
+                        );
+
+                        return temporaryPostRepository.save(newPost);
+                    } catch (RuntimeException e) {
+                        if (file != null) {
+                            fileService.deleteFile(file);
+                        }
+                        throw e;
+                    }
                 });
 
         return new TemporaryPostResponseDto(savedPost);
@@ -75,10 +99,23 @@ public class TemporaryPostService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "temporary_post_update_forbidden");
         }
 
-        Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
         post.updateTitle(request.getTitle());
         post.updateContent(request.getContent());
-        post.updateFile(file.orElse(null));
+        post.updateType(request.getType());
+        post.updateCapacity(request.getCapacity());
+        post.updateDeadline(request.getDeadline());
+
+        boolean hasImage = image != null && !image.isEmpty();
+
+        if (hasImage) {
+            Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
+            try {
+                post.updateFile(file.orElse(null));
+            } catch (RuntimeException e) {
+                file.ifPresent(fileService::deleteFile);
+                throw e;
+            }
+        }
 
         return new TemporaryPostResponseDto(post);
     }

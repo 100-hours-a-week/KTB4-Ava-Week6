@@ -44,10 +44,13 @@ dependencies {
 
     developmentOnly 'org.springframework.boot:spring-boot-h2console'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    developmentOnly 'p6spy:p6spy:3.9.1'
+
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'p6spy:p6spy:3.9.1'
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
