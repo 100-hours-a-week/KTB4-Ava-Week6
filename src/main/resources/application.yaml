@@ -23,6 +23,11 @@ spring:
       hibernate:
         format_sql: true
 
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 3MB
+
 file:
   upload-dir: ${FILE_UPLOAD_DIR:uploads/images}
 

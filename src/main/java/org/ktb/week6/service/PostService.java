@@ -30,7 +30,6 @@ public class PostService {
     private static final int POST_PAGE_SIZE = 10;
 
     private final PostRepository postRepository;
-    private final EventPostRepository eventPostRepository;
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
     private final ReportRepository reportRepository;
@@ -75,16 +74,15 @@ public class PostService {
                 new NotFoundException("user_not_found"));
 
         Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
-        try {
-
+        return FileService.withCleanupOnFailure(file, fileService::deleteFile, () -> {
             Post post = new Post(request.getTitle(), request.getContent(), user, file.orElse(null));
 
             postRepository.save(post);
 
             // 모임글이라면 모임 내용 저장
-            if (request.getType().equals(PostType.MEETING)) {
-                eventPostService.createEventPost(post, request.getCapacity(), request.getDeadline());
-            }
+            EventPost eventPost = request.getType().equals(PostType.MEETING)
+                    ? eventPostService.createEventPost(post, request.getCapacity(), request.getDeadline())
+                    : null;
 
             // 임시저장 이력도 함께 삭제
             if (request.getTemporaryPostId() != null) {
@@ -98,14 +96,10 @@ public class PostService {
 
             postHistoryRepository.save(postHistory);
 
-            EventPost eventPost = eventPostRepository.findByPostId(post.getId()).orElse(null);
             boolean isLiked = likeRepository.existsByPostIdAndUserId(post.getId(), userId);
 
             return new PostResponseDto(post, eventPost, isLiked);
-        } catch (RuntimeException e) {
-            file.ifPresent(fileService::deleteFile);
-            throw e;
-        }
+        });
     }
 
     // 게시글 상세 조회
@@ -146,15 +140,15 @@ public class PostService {
         Post post = postRepository.findByIdWithEventPost(postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
-        if (post.getEventPost() != null) {
-            throw new BusinessException(HttpStatus.FORBIDDEN, "meeting_post_update_forbidden");
-        }
-
         validatePostIsNotDeleted(post);
 
         // 수정자 권한 체크
         if (!post.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "post_update_forbidden");
+        }
+
+        if (post.getEventPost() != null) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "meeting_post_update_forbidden");
         }
 
         boolean hasTitle = request.getTitle() != null && !request.getTitle().isBlank();
@@ -169,7 +163,7 @@ public class PostService {
                 ? fileService.storeFile(image, FileCategory.POST_ATTACHMENT)
                 : Optional.empty();
 
-        try {
+        return FileService.withCleanupOnFailure(file, fileService::deleteFile, () -> {
             if (hasTitle) {
                 post.updateTitle(request.getTitle());
             }
@@ -191,10 +185,7 @@ public class PostService {
 
             boolean isLiked = likeRepository.existsByPostIdAndUserId(postId, userId);
             return new PostResponseDto(post, post.getEventPost(), isLiked);
-        } catch (RuntimeException e) {
-            file.ifPresent(fileService::deleteFile);
-            throw e;
-        }
+        });
     }
 
     // 게시글 삭제

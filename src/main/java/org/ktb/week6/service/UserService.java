@@ -48,13 +48,10 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         Optional<File> newFile = fileService.storeFile(file, FileCategory.PROFILE_IMAGE);
-        try {
+        return FileService.withCleanupOnFailure(newFile, fileService::deleteFile, () -> {
             savedUser.updateFile(newFile.orElse(null));
             return new UserResponseDto(savedUser);
-        } catch (RuntimeException e) {
-            newFile.ifPresent(fileService::deleteFile);
-            throw e;
-        }
+        });
     }
 
     // 회원 정보 조회
@@ -88,16 +85,13 @@ public class UserService {
                 ? fileService.storeFile(file, FileCategory.PROFILE_IMAGE)
                 : Optional.empty();
 
-        try {
+        return FileService.withCleanupOnFailure(newFile, fileService::deleteFile, () -> {
             if (hasFile) {
                 user.updateFile(newFile.orElse(null));
             }
 
             return new UserResponseDto(user);
-        } catch (RuntimeException e) {
-            newFile.ifPresent(fileService::deleteFile);
-            throw e;
-        }
+        });
     }
 
     // 비밀번호 수정

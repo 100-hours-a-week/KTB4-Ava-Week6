@@ -1,6 +1,7 @@
 package org.ktb.week6.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ktb.week6.config.FileProperties;
 import org.ktb.week6.entity.File;
 import org.ktb.week6.enums.FileCategory;
@@ -16,7 +17,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileService {
@@ -54,6 +58,21 @@ public class FileService {
             return Optional.of(fileRepository.save(new File(filePath, category)));
         } catch (IOException e) {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "file_upload_failed");
+        }
+    }
+
+    public static <T> T withCleanupOnFailure(Optional<File> file, Consumer<File> cleanup, Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (RuntimeException e) {
+            file.ifPresent(f -> {
+                try {
+                    cleanup.accept(f);
+                } catch (RuntimeException cleanupException) {
+                    log.error("Failed to clean up file {} after action failure", f.getId(), cleanupException);
+                }
+            });
+            throw e;
         }
     }
 

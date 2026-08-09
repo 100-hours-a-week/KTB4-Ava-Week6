@@ -57,33 +57,28 @@ public class TemporaryPostService {
 
                     if (hasImage) {
                         Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
-                        try {
+                        FileService.withCleanupOnFailure(file, fileService::deleteFile, () -> {
                             post.updateFile(file.orElse(null));
-                        } catch (RuntimeException e) {
-                            file.ifPresent(fileService::deleteFile);
-                            throw e;
-                        }
+                            return post;
+                        });
                     }
 
                     return post;
                 })
                 .orElseGet(() -> {
-                    File file = hasImage ? fileService.storeFile(image, FileCategory.POST_ATTACHMENT).orElse(null) : null;
+                    Optional<File> file = hasImage
+                            ? fileService.storeFile(image, FileCategory.POST_ATTACHMENT)
+                            : Optional.empty();
 
-                    try {
+                    return FileService.withCleanupOnFailure(file, fileService::deleteFile, () -> {
                         TemporaryPost newPost = new TemporaryPost(
                                 request,
                                 user,
-                                file
+                                file.orElse(null)
                         );
 
                         return temporaryPostRepository.save(newPost);
-                    } catch (RuntimeException e) {
-                        if (file != null) {
-                            fileService.deleteFile(file);
-                        }
-                        throw e;
-                    }
+                    });
                 });
 
         return new TemporaryPostResponseDto(savedPost);
@@ -109,12 +104,10 @@ public class TemporaryPostService {
 
         if (hasImage) {
             Optional<File> file = fileService.storeFile(image, FileCategory.POST_ATTACHMENT);
-            try {
+            FileService.withCleanupOnFailure(file, fileService::deleteFile, () -> {
                 post.updateFile(file.orElse(null));
-            } catch (RuntimeException e) {
-                file.ifPresent(fileService::deleteFile);
-                throw e;
-            }
+                return post;
+            });
         }
 
         return new TemporaryPostResponseDto(post);
