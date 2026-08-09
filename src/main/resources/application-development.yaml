@@ -14,3 +14,6 @@ logging:
       hibernate:
         SQL: info
     p6spy: debug
+
+mock-data:
+  enabled: ${MOCK_DATA_ENABLED:false}

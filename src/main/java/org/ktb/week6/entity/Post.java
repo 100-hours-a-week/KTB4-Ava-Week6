@@ -58,7 +58,7 @@ public class Post {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "post")
     private List<Comment> comment = new ArrayList<>();
 
-    @OneToOne(mappedBy = "post")
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "post")
     private EventPost eventPost;
 
     @CreatedDate
@@ -107,10 +107,6 @@ public class Post {
         if (status.equals(StatusType.DELETED)) {
             this.deletedAt = LocalDateTime.now();
         }
-    }
-
-    public void increaseCommentCount() {
-        this.commentCount++;
     }
 
     public void increaseViewCount() {

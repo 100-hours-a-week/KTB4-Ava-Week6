@@ -14,6 +14,8 @@ public interface EventPostRepository extends JpaRepository<EventPost, Long> {
     // 읽기 전용
     Optional<EventPost> findByPostId(Long id);
 
+    boolean existsByPostId(Long postId);
+
     @Query(value = "select * from event_post where post_id = :postId for update", nativeQuery = true)
     Optional<EventPost> findByPostIdForUpdate(@Param("postId") Long postId);
 
