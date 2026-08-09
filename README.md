@@ -31,7 +31,9 @@
 
 ### 서비스 시연 영상
 
-- 추후 추가 예정
+![서비스 시연 영상](docs/assets/demo.gif)
+
+[원본 영상 보기](docs/assets/demo.mov)
 
 ### 폴더 구조
 
