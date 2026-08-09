@@ -44,4 +44,4 @@ docker-compose.yml
 # Documentation
 HELP.md
 README.md
-docs
+/docs/
