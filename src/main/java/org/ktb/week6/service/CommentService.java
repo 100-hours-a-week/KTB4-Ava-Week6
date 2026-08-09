@@ -8,6 +8,7 @@ import org.ktb.week6.enums.StatusType;
 import org.ktb.week6.exception.BusinessException;
 import org.ktb.week6.exception.NotFoundException;
 import org.ktb.week6.repository.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +35,11 @@ public class CommentService {
         Post post = postRepository.findByStatusNotAndId(StatusType.DELETED, postId).orElseThrow(() -> new NotFoundException("post_not_found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("user_not_found"));
 
-        if (post.getEventPost() != null) {
-            return createEventComment(request, post, user);
-        } else {
-            return createGeneralComment(request, post, user);
-        }
+        Optional<EventPost> eventPost = eventPostRepository.existsByPostId(post.getId())
+                ? eventPostRepository.findByPostIdForUpdate(post.getId())
+                : Optional.empty();
+
+        return eventPost.map(value -> createEventComment(request, post, user, value)).orElseGet(() -> createGeneralComment(request, post, user));
     }
 
     private CommentResponseDto createGeneralComment(CommentRequestDto request, Post post, User user) {
@@ -53,13 +54,12 @@ public class CommentService {
 
         Comment savedComment = commentRepository.save(comment);
 
-        post.increaseCommentCount();
+        postRepository.increaseCommentCount(post.getId());
 
         return new CommentResponseDto(savedComment);
     }
 
-    private CommentResponseDto createEventComment(CommentRequestDto request, Post post, User user) {
-        EventPost eventPost = eventPostRepository.findByPostIdForUpdate(post.getId()).orElseThrow(() -> new NotFoundException("event_post_not_found"));
+    private CommentResponseDto createEventComment(CommentRequestDto request, Post post, User user, EventPost eventPost) {
 
         if (post.getUser().getId().equals(user.getId())) {
             throw new BusinessException(
@@ -94,10 +94,15 @@ public class CommentService {
         EventApplication newEventApplication = new EventApplication(eventPost, user, newComment);
 
         commentRepository.save(newComment);
-        eventApplicationRepository.save(newEventApplication);
+
+        try {
+            eventApplicationRepository.saveAndFlush(newEventApplication);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(HttpStatus.CONFLICT, "application_already_exists");
+        }
 
         eventPost.increaseApplicationCount();
-        post.increaseCommentCount();
+        postRepository.increaseCommentCount(post.getId());
 
         return new CommentResponseDto(newComment);
     }

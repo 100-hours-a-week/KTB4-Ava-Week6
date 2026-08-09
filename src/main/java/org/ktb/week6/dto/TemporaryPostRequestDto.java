@@ -1,5 +1,6 @@
 package org.ktb.week6.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,5 +24,10 @@ public class TemporaryPostRequestDto {
     private int capacity;
 
     private LocalDateTime deadline;
+
+    @AssertTrue(message = "invalid_capacity")
+    public boolean isCapacityValid() {
+        return type != PostType.MEETING || capacity >= 2;
+    }
 
 }

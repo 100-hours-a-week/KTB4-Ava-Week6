@@ -40,8 +40,12 @@ public class EventPost {
     }
 
     public EventPost(Post post, int capacity, LocalDateTime deadline) {
+        if (capacity < 2) {
+            throw new IllegalArgumentException("capacity must be at least 2");
+        }
         this.post = post;
         this.capacity = capacity;
+        this.applicationCount = 1;
         this.deadline = deadline;
     }
 
@@ -56,5 +60,4 @@ public class EventPost {
     public void increaseApplicationCount() {
         this.applicationCount++;
     }
-
 }

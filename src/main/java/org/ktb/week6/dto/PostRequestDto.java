@@ -33,7 +33,7 @@ public class PostRequestDto {
 
     @AssertTrue(message = "invalid_capacity")
     public boolean isCapacityValid() {
-        return type != PostType.MEETING || capacity >= 1;
+        return type != PostType.MEETING || capacity >= 2;
     }
 
     @AssertTrue(message = "invalid_deadline")
